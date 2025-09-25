@@ -173,7 +173,7 @@ export default function LibraryPage() {
                 <CardHeader className="p-0">
                   <div className="relative aspect-video bg-white/10 rounded-t-xl sm:rounded-t-lg overflow-hidden">
                     <video
-                      src="/HIGH%20TO%20LOW%20(DONE)%20(1).mov"
+                      src="/HIGH%20TO%20LOW%20(DONE)%20(1).mp4"
                       className="w-full h-full object-cover"
                       controls
                       playsInline
@@ -185,7 +185,7 @@ export default function LibraryPage() {
                     <CardTitle className="text-sm sm:text-lg line-clamp-2 text-white">Cable Chest Flys</CardTitle>
                   </div>
                   <Button asChild className="w-full bg-gold hover:bg-gold/90 text-black text-sm">
-                    <a href="/HIGH%20TO%20LOW%20(DONE)%20(1).mov" target="_blank" rel="noopener noreferrer">
+                    <a href="/HIGH%20TO%20LOW%20(DONE)%20(1).mp4" target="_blank" rel="noopener noreferrer">
                       <Play className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 text-black" />
                       Watch Video
                     </a>
