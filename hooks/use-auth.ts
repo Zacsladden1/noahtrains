@@ -74,7 +74,12 @@ export function useAuth() {
       if (!mounted) return;
       setUser(session?.user ?? null);
       if (session?.user) {
-        await fetchProfile(session.user.id);
+        let ok = false;
+        for (let i = 0; i < 2; i++) {
+          ok = await fetchProfile(session.user.id);
+          if (ok) break;
+          await new Promise(r => setTimeout(r, 500));
+        }
       } else {
         setProfile(null);
         setLoading(false);
@@ -114,12 +119,14 @@ export function useAuth() {
 
       if (error) {
         console.error('Error fetching profile:', error);
-        return;
+        return false;
       }
 
       setProfile(data);
+      return true;
     } catch (error) {
       console.error('Error fetching profile:', error);
+      return false;
     } finally {
       setLoading(false);
     }

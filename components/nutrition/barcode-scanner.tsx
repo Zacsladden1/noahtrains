@@ -10,6 +10,7 @@ export function BarcodeScanner({ onDetected }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [active, setActive] = useState(false);
+  const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
 
   useEffect(() => {
     let stream: MediaStream | null = null;
@@ -20,7 +21,7 @@ export function BarcodeScanner({ onDetected }: Props) {
       try {
         // Camera access
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'environment' } },
+          video: { facingMode: { ideal: facingMode } },
           audio: false,
         });
         if (!videoRef.current) return;
@@ -62,13 +63,20 @@ export function BarcodeScanner({ onDetected }: Props) {
       if (stream) stream.getTracks().forEach((t) => t.stop());
       setActive(false);
     };
-  }, [onDetected]);
+  }, [onDetected, facingMode]);
 
   return (
     <div className="space-y-3">
       <div className="relative rounded-lg overflow-hidden bg-black/50 aspect-video">
         <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />
         <div className="absolute inset-0 pointer-events-none border-2 border-gold m-6 rounded-xl" />
+        <button
+          type="button"
+          onClick={() => setFacingMode((m) => (m === 'environment' ? 'user' : 'environment'))}
+          className="absolute top-3 right-3 z-10 rounded-md bg-black/60 text-white text-xs px-2 py-1 border border-white/20 hover:bg-black/80"
+        >
+          Flip
+        </button>
       </div>
       {!active && !error && <p className="text-white/60 text-sm">Starting camera…</p>}
       {error && <p className="text-red-400 text-sm">{error}</p>}
