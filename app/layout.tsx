@@ -1,9 +1,13 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import { Cinzel, Cormorant_Garamond } from 'next/font/google';
-import dynamic from 'next/dynamic';
+import nextDynamic from 'next/dynamic';
 
-const ChunkErrorReload = dynamic(() => import('@/components/system/chunk-error-reload'), { ssr: false });
+const ChunkErrorReload = nextDynamic(() => import('@/components/system/chunk-error-reload'), { ssr: false });
+
+// Avoid serving stale HTML that references old chunks
+export const dynamicMode = 'force-dynamic';
+export const revalidate = 0;
 
 const cinzel = Cinzel({
   subsets: ['latin'],
