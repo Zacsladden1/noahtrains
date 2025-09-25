@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { BarcodeScanner as ReactBarcodeScanner } from 'react-barcode-scanner';
+import { BrowserMultiFormatReader } from '@zxing/library';
 
 type Props = {
   onDetected: (code: string) => void;
@@ -12,6 +13,17 @@ export function BarcodeScanner({ onDetected, onManualEntry }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [pendingScan, setPendingScan] = useState<string | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
+  const [useTorch, setUseTorch] = useState(false);
+
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const rafRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    setIsIOS(/iPad|iPhone|iPod/.test(navigator.userAgent));
+  }, []);
 
   const handleScan = useCallback((code: string) => {
     if (!pendingScan) {
@@ -24,6 +36,68 @@ export function BarcodeScanner({ onDetected, onManualEntry }: Props) {
     console.error('Barcode scanner error:', err);
     setError(err);
   }, []);
+
+  // iOS ZXing fallback setup
+  useEffect(() => {
+    if (!isIOS || showConfirmation) return;
+
+    let cancelled = false;
+
+    const startZXing = async () => {
+      try {
+        // Request higher quality on iOS
+        const constraints: MediaStreamConstraints = {
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+            frameRate: { ideal: 30, max: 60 },
+            advanced: useTorch ? [{ torch: true as any }] : [],
+          } as MediaTrackConstraints,
+          audio: false,
+        };
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        streamRef.current = stream;
+
+        if (!videoRef.current) return;
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+
+        codeReaderRef.current = new BrowserMultiFormatReader();
+
+        const loop = async () => {
+          if (cancelled || showConfirmation) return;
+          try {
+            const result = await codeReaderRef.current!.decodeFromVideoElement(videoRef.current!);
+            if (result && result.getText() && !pendingScan) {
+              handleScan(result.getText());
+              return;
+            }
+          } catch (_) {
+            // continue scanning
+          }
+          rafRef.current = requestAnimationFrame(loop);
+        };
+        rafRef.current = requestAnimationFrame(loop);
+      } catch (e: any) {
+        handleError(e?.message || 'Camera access failed');
+      }
+    };
+
+    if (isIOS) startZXing();
+
+    return () => {
+      cancelled = true;
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (codeReaderRef.current) {
+        try { codeReaderRef.current.reset(); } catch {}
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(t => t.stop());
+        streamRef.current = null;
+      }
+    };
+  }, [isIOS, useTorch, showConfirmation, pendingScan, handleScan, handleError]);
 
   const handleConfirmScan = useCallback(() => {
     if (pendingScan) {
@@ -42,33 +116,51 @@ export function BarcodeScanner({ onDetected, onManualEntry }: Props) {
     <div className="space-y-3">
       {!showConfirmation && (
         <div className="relative rounded-lg overflow-hidden bg-black/50 aspect-video">
-          <ReactBarcodeScanner
-            options={{
-              formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'qr_code'],
-            }}
-            onCapture={(barcodes) => {
-              if (barcodes.length > 0 && !pendingScan) {
-                const code = barcodes[0].rawValue || '';
-                handleScan(code);
-              }
-            }}
-            onError={(error) => handleError(error.message || 'Scanner error')}
-            trackConstraints={{
-              facingMode: 'environment',
-              aspectRatio: 1,
-              frameRate: { ideal: 30, max: 60 }
-            }}
-          />
+          {!isIOS ? (
+            <ReactBarcodeScanner
+              options={{
+                formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'qr_code'],
+              }}
+              onCapture={(barcodes) => {
+                if (barcodes.length > 0 && !pendingScan) {
+                  const code = barcodes[0].rawValue || '';
+                  handleScan(code);
+                }
+              }}
+              onError={(error) => handleError(error.message || 'Scanner error')}
+              trackConstraints={{
+                facingMode: 'environment',
+                aspectRatio: 1,
+                frameRate: { ideal: 30, max: 60 }
+              }}
+            />
+          ) : (
+            <video
+              ref={videoRef}
+              className="w-full h-full object-cover"
+              playsInline
+              muted
+              autoPlay
+            />
+          )}
           <div className="absolute inset-0 pointer-events-none border-2 border-gold m-6 rounded-xl" />
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="text-gold text-sm font-medium">
               Point camera at barcode to scan
             </div>
           </div>
+          {isIOS && (
+            <button
+              type="button"
+              onClick={() => setUseTorch(v => !v)}
+              className="absolute top-3 right-3 z-10 rounded-md bg-black/60 text-white text-xs px-2 py-1 border border-white/20 hover:bg-black/80"
+            >
+              {useTorch ? 'Torch Off' : 'Torch On'}
+            </button>
+          )}
         </div>
       )}
 
-      {/* Confirmation Dialog */}
       {showConfirmation && pendingScan && (
         <div className="bg-black/80 rounded-lg p-4 border border-gold/30">
           <div className="text-center space-y-3">

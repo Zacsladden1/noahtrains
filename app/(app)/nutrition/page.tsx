@@ -593,7 +593,6 @@ export default function NutritionPage() {
                     setShowManualEntry(true);
                   }}
                 />
-                <p className="text-white/60 text-xs sm:text-sm mt-2">Point camera at barcode. Some browsers require HTTPS or localhost for camera access.</p>
               </div>
               <div className="flex gap-1 sm:gap-2">
                 <Button 
