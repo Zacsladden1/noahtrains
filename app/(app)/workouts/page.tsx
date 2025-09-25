@@ -212,11 +212,11 @@ export default function WorkoutsPage() {
                         <Link href={`/workouts/${workout.id}`}>
                           <Button 
                             className={workout.status === 'completed' 
-                              ? 'border-white/30 text-white hover:bg-white/10' 
-                              : 'bg-gold hover:bg-gold/90 text-black'
+                              ? 'border-white/30 text-white hover:bg-white/10 text-xs sm:text-sm' 
+                              : 'bg-gold hover:bg-gold/90 text-black text-xs sm:text-sm'
                             }
                             variant={workout.status === 'completed' ? 'outline' : 'default'}
-                            size="sm" className="text-xs sm:text-sm"
+                            size="sm"
                           >
                             {workout.status === 'completed' ? 'View' : 'Continue'}
                           </Button>
