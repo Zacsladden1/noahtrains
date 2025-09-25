@@ -47,7 +47,7 @@ export function useAuth() {
 
       if (error) {
         console.error('Auth session error:', error);
-        setError(`Auth session error: ${error.message}`);
+        setError(`Auth session error: ${error instanceof Error ? error.message : 'Unknown error'}`);
         setLoading(false);
         return;
       }
@@ -86,7 +86,7 @@ export function useAuth() {
           }
         } catch (error) {
           console.error('Error in auth state change:', error);
-          setError(`Auth state change error: ${error.message}`);
+          setError(`Auth state change error: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
       } else {
         setProfile(null);
@@ -128,7 +128,7 @@ export function useAuth() {
       if (error) {
         console.error('Error fetching profile:', error);
         // Don't fail completely if profile fetch fails, just log it
-        setError(`Profile fetch failed: ${error.message}`);
+        setError(`Profile fetch failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
         return false;
       }
 
@@ -137,7 +137,7 @@ export function useAuth() {
     } catch (error) {
       console.error('Error fetching profile:', error);
       // Don't fail completely if profile fetch fails, just log it
-      setError(`Profile fetch failed: ${error.message}`);
+      setError(`Profile fetch failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
       return false;
     } finally {
       setLoading(false);
@@ -204,6 +204,7 @@ export function useAuth() {
     user,
     profile,
     loading,
+    error,
     signIn,
     signUp,
     signOut,
