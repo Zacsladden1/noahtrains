@@ -40,6 +40,31 @@ export default function RootLayout({
           rel="icon"
           href={`data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>🏋️</text></svg>`}
         />
+        {/* Early chunk error handler: registers before any client bundle executes */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(() => {
+  const bust = () => {
+    try { if ('caches' in window) { caches.keys().then(keys => keys.forEach(k => caches.delete(k))); } } catch {}
+    const u = new URL(window.location.href);
+    u.searchParams.set('v', Date.now().toString());
+    window.location.replace(u.toString());
+  };
+  window.addEventListener('error', function (e) {
+    const target = e.target || {};
+    const src = target.src || '';
+    const msg = (e.message || '') + '';
+    if ((src && src.indexOf('/_next/static/chunks/') !== -1) || msg.indexOf('ChunkLoadError') !== -1) {
+      bust();
+    }
+  }, true);
+  window.addEventListener('unhandledrejection', function (e) {
+    var msg = '' + (e.reason && (e.reason.message || e.reason))
+    if (msg.indexOf('ChunkLoadError') !== -1) bust();
+  });
+})();`,
+          }}
+        />
       </head>
       <body className="min-h-screen bg-background text-foreground">
         {children}
