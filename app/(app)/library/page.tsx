@@ -58,13 +58,10 @@ export default function LibraryPage() {
     }
   };
 
-  const categories = [
-    'all',
-    ...new Set([
-      ...videos.map(v => v.category).filter(Boolean),
-      ...documents.map(d => d.category).filter(Boolean)
-    ])
-  ];
+  const categoriesSet = new Set<string>([]);
+  videos.forEach(v => { if (v.category) categoriesSet.add(v.category); });
+  documents.forEach(d => { if (d.category) categoriesSet.add(d.category); });
+  const categories = ['all', ...Array.from(categoriesSet)];
 
   const filteredVideos = videos.filter(video => {
     const matchesSearch = video.title.toLowerCase().includes(searchQuery.toLowerCase()) ||

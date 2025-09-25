@@ -64,7 +64,7 @@ export function AppShell({ children }: AppShellProps) {
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 bg-black border-r border-white/20">
         <div className="flex items-center justify-center h-16 px-4 border-b border-border">
-          <h1 className="text-xl font-heading text-gold">Noahhtrains</h1>
+          <h1 className="text-xl font-heading text-white">Noahhtrains</h1>
         </div>
         
         <nav className="flex-1 px-4 py-6 space-y-3">
@@ -128,8 +128,8 @@ export function AppShell({ children }: AppShellProps) {
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
           <aside className="absolute left-0 top-0 h-full w-64 bg-black border-r border-white/20">
-            <div className="flex items-center justify-between h-16 px-4 border-b border-white/20">
-              <h1 className="text-xl font-heading text-gold">Noahhtrains</h1>
+              <div className="flex items-center justify-between h-16 px-4 border-b border-white/20">
+              <h1 className="text-xl font-heading text-white">Noahhtrains</h1>
               <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(false)}>
                 <X className="w-5 h-5 text-white" />
               </Button>
@@ -168,7 +168,7 @@ export function AppShell({ children }: AppShellProps) {
           <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)}>
             <Menu className="w-5 h-5 text-white" />
           </Button>
-          <h1 className="text-lg font-heading text-gold">Noahhtrains</h1>
+          <h1 className="text-lg font-heading text-white">Noahhtrains</h1>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon">

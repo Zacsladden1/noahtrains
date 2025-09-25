@@ -16,7 +16,8 @@ import {
   CheckCircle, 
   Search,
   Filter,
-  TrendingUp
+  TrendingUp,
+  Dumbbell
 } from 'lucide-react';
 import { Workout, Exercise } from '@/types/supabase';
 import Link from 'next/link';

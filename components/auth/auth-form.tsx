@@ -94,7 +94,7 @@ export function AuthForm() {
       <div className="w-full max-w-sm mx-auto">
         {/* Logo Section */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-heading text-gold mb-2">Noahhtrains</h1>
+          <h1 className="text-4xl font-heading text-white mb-2">Noahhtrains</h1>
           <p className="text-white/70 text-sm">Premium Fitness Coaching</p>
         </div>
 

@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { supabase } from '@/lib/supabase';
-import { OverviewCards } from '@/components/dashboard/overview-cards';
-import { TodaysWorkout } from '@/components/dashboard/todays-workout';
-import { MacroRings } from '@/components/nutrition/macro-rings';
+import dynamic from 'next/dynamic';
+const OverviewCards = dynamic(() => import('@/components/dashboard/overview-cards').then(m => m.OverviewCards), { ssr: false });
+const TodaysWorkout = dynamic(() => import('@/components/dashboard/todays-workout').then(m => m.TodaysWorkout), { ssr: false });
+const MacroRings = dynamic(() => import('@/components/nutrition/macro-rings').then(m => m.MacroRings), { ssr: false });
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus, MessageCircle, Bell } from 'lucide-react';
@@ -68,15 +69,17 @@ export default function DashboardPage() {
         .eq('date', today);
 
       if (nutrition) {
-        const totals = nutrition.reduce(
-          (acc, item) => ({
-            calories: acc.calories + (item.calories || 0),
-            protein: acc.protein + (item.protein_g || 0),
-            carbs: acc.carbs + (item.carbs_g || 0),
-            fat: acc.fat + (item.fat_g || 0),
-          }),
-          { calories: 0, protein: 0, carbs: 0, fat: 0 }
-        );
+        const totals = (nutrition as NutritionLog[]).reduce((acc: { calories: number; protein: number; carbs: number; fat: number }, item: NutritionLog) => ({
+          calories: acc.calories + (item.calories || 0),
+          protein: acc.protein + (item.protein_g || 0),
+          carbs: acc.carbs + (item.carbs_g || 0),
+          fat: acc.fat + (item.fat_g || 0),
+        }), {
+          calories: 0,
+          protein: 0,
+          carbs: 0,
+          fat: 0,
+        });
         setNutritionData(totals);
       }
 
@@ -88,7 +91,7 @@ export default function DashboardPage() {
         .eq('date', today);
 
       if (water) {
-        const totalWater = water.reduce((acc, item) => acc + item.ml, 0);
+        const totalWater = (water as { ml: number }[]).reduce((acc: number, item: { ml: number }) => acc + item.ml, 0);
         setWaterIntake(totalWater);
       }
 
@@ -106,7 +109,7 @@ export default function DashboardPage() {
         // Calculate streak (consecutive days with workouts)
         let streak = 0;
         const today = new Date();
-        const workoutDates = recentWorkouts.map(w => 
+        const workoutDates = (recentWorkouts as { completed_at: string }[]).map((w: { completed_at: string }) => 
           new Date(w.completed_at!).toISOString().split('T')[0]
         );
         
@@ -128,7 +131,7 @@ export default function DashboardPage() {
         weekStart.setDate(weekStart.getDate() - weekStart.getDay());
         const weekStartStr = weekStart.toISOString().split('T')[0];
         
-        const weeklyCount = recentWorkouts.filter(w => {
+        const weeklyCount = (recentWorkouts as { completed_at: string }[]).filter((w: { completed_at: string }) => {
           const workoutDate = new Date(w.completed_at!).toISOString().split('T')[0];
           return workoutDate >= weekStartStr;
         }).length;

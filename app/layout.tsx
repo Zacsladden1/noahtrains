@@ -1,5 +1,20 @@
 import './globals.css';
 import type { Metadata } from 'next';
+import { Cinzel, Cormorant_Garamond } from 'next/font/google';
+
+const cinzel = Cinzel({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-heading',
+  display: 'swap',
+});
+
+const cormorant = Cormorant_Garamond({
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600', '700'],
+  variable: '--font-body',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: 'Noahhtrains - Premium Fitness Coaching',
@@ -12,7 +27,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" className={`dark ${cinzel.variable} ${cormorant.variable}`}>
       <body className="min-h-screen bg-background text-foreground">
         {children}
       </body>

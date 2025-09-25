@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&display=swap');
+/* Fonts are now loaded via next/font in app/layout.tsx with CSS variables */
 
 :root {
   --foreground-rgb: 255, 255, 255;
@@ -46,11 +46,11 @@
   }
   body {
     @apply bg-background text-foreground font-sans;
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: var(--font-body), Arial, Helvetica, sans-serif;
   }
   
   h1, h2, h3, h4, h5, h6, .font-heading {
-    font-family: 'Cinzel', serif;
+    font-family: var(--font-heading), serif;
     font-weight: 600;
   }
 }

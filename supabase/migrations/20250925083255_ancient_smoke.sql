@@ -62,14 +62,15 @@ CREATE POLICY "Users can update own profile"
   TO authenticated
   USING (auth.uid() = id);
 
+-- Admin policy: avoid querying the same table inside the USING clause to prevent
+-- recursive evaluation. Prefer checking a JWT claim or a dedicated function.
 CREATE POLICY "Admins can view all profiles"
   ON profiles FOR ALL
   TO authenticated
   USING (
-    EXISTS (
-      SELECT 1 FROM profiles 
-      WHERE id = auth.uid() AND role = 'admin'
-    )
+    -- If your Auth provider adds a 'role' claim to the JWT, check it here.
+    -- Adjust the claim path/name if your setup differs.
+    (current_setting('jwt.claims.role', true) = 'admin')
   );
 
 -- Clients table (coach-client relationships)

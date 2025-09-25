@@ -343,6 +343,35 @@ export type Database = {
           created_at?: string;
         };
       };
+      nutrition_targets: {
+        Row: {
+          user_id: string;
+          calories: number | null;
+          protein_g: number | null;
+          carbs_g: number | null;
+          fat_g: number | null;
+          water_ml: number | null;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          calories?: number | null;
+          protein_g?: number | null;
+          carbs_g?: number | null;
+          fat_g?: number | null;
+          water_ml?: number | null;
+          updated_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          calories?: number | null;
+          protein_g?: number | null;
+          carbs_g?: number | null;
+          fat_g?: number | null;
+          water_ml?: number | null;
+          updated_at?: string;
+        };
+      };
     };
   };
 };
@@ -360,3 +389,4 @@ export type WaterLog = Database['public']['Tables']['water_logs']['Row'];
 export type Message = Database['public']['Tables']['messages']['Row'];
 export type Video = Database['public']['Tables']['videos']['Row'];
 export type Document = Database['public']['Tables']['documents']['Row'];
+export type NutritionTargets = Database['public']['Tables']['nutrition_targets']['Row'];

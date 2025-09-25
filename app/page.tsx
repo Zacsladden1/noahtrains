@@ -23,7 +23,7 @@ function SupabaseSetupInstructions() {
         {/* Logo Section */}
         <div className="text-center mb-8">
           <Database className="w-16 h-16 text-gold mx-auto mb-4" />
-          <h1 className="text-4xl font-heading text-gold mb-2">Noahhtrains</h1>
+          <h1 className="text-4xl font-heading text-white mb-2">Noahhtrains</h1>
           <p className="text-white/70">Premium Fitness Coaching</p>
         </div>
 
@@ -132,10 +132,20 @@ export default function HomePage() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
+  const [authStalled, setAuthStalled] = useState(false);
   const [showSetup, setShowSetup] = useState(() => !isSupabaseConfigured());
+  const [showDebug, setShowDebug] = useState(false);
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  // If auth loading/mounting stalls, show the auth form as a fallback after 1.5s
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setAuthStalled(true);
+    }, 1500);
+    return () => clearTimeout(t);
   }, []);
 
   useEffect(() => {
@@ -149,7 +159,7 @@ export default function HomePage() {
     return <SupabaseSetupInstructions />;
   }
 
-  if (!mounted) {
+  if (!mounted && !authStalled) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <LoadingSpinner size="lg" />
@@ -157,8 +167,8 @@ export default function HomePage() {
     );
   }
 
-  // Show loading only if we're actually loading auth state
-  if (loading) {
+  // Show loading only if we're actually loading auth state and fallback hasn't kicked in
+  if (loading && !authStalled) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <LoadingSpinner size="lg" />
@@ -170,5 +180,32 @@ export default function HomePage() {
     return null; // Redirecting
   }
 
-  return <AuthForm />;
+  return (
+    <>
+      <AuthForm />
+      {showDebug && (
+        <div className="fixed bottom-4 right-4 w-80 p-3 bg-white/5 border border-white/10 rounded-lg text-xs text-white">
+          <div className="flex items-center justify-between mb-2">
+            <strong>Debug</strong>
+            <button onClick={() => setShowDebug(false)} className="text-white/60 hover:text-white">✕</button>
+          </div>
+          <div className="space-y-1">
+            <div><strong>user:</strong> <span className="break-words">{JSON.stringify(user)}</span></div>
+            <div><strong>loading:</strong> {String(loading)}</div>
+            <div><strong>authStalled:</strong> {String(authStalled)}</div>
+            <div><strong>NEXT_PUBLIC_SUPABASE_URL:</strong> {String(process.env.NEXT_PUBLIC_SUPABASE_URL)}</div>
+            <div><strong>NEXT_PUBLIC_SUPABASE_ANON_KEY:</strong> {String(Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY))}</div>
+          </div>
+        </div>
+      )}
+      {!showDebug && (
+        <button
+          onClick={() => setShowDebug(true)}
+          className="fixed bottom-4 right-4 bg-gold text-black px-3 py-2 rounded-md text-sm"
+        >
+          Show Debug
+        </button>
+      )}
+    </>
+  );
 }

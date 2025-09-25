@@ -20,8 +20,14 @@ import {
   Moon,
   Apple
 } from 'lucide-react';
-import { MacroRings } from '@/components/nutrition/macro-rings';
-import { NutritionLog, WaterLog } from '@/types/supabase';
+import dynamic from 'next/dynamic';
+const MacroRings = dynamic(() => import('@/components/nutrition/macro-rings').then(m => m.MacroRings), { ssr: false });
+import { FoodLogDialog, EditFoodLogDialog } from '@/components/nutrition/food-log-dialog';
+import { NutritionLog, WaterLog, NutritionTargets } from '@/types/supabase';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { MoreHorizontal, Settings as SettingsIcon, Trash2, Pencil } from 'lucide-react';
+import { MealPresetsDialog, Preset } from '@/components/nutrition/meal-presets-dialog';
+import { BarcodeScanner } from '@/components/nutrition/barcode-scanner';
 
 const mealTypes = [
   { id: 'breakfast', name: 'Breakfast', icon: Coffee, color: 'text-orange-400' },
@@ -37,14 +43,48 @@ export default function NutritionPage() {
   const [waterLogs, setWaterLogs] = useState<WaterLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
+  const [recentFoods, setRecentFoods] = useState<any[]>([]);
+  const [targets, setTargets] = useState<{ calories: number; protein: number; carbs: number; fat: number; water: number } | null>(null);
 
-  // Target values (would come from user settings in a real app)
-  const targets = {
-    calories: 2200,
-    protein: 150,
-    carbs: 250,
-    fat: 80,
-    water: 3000,
+  useEffect(() => {
+    if (profile) {
+      fetchTargets();
+    }
+  }, [profile]);
+
+  const fetchTargets = async () => {
+    if (!profile) return;
+    const { data } = await supabase
+      .from('nutrition_targets')
+      .select('*')
+      .eq('user_id', profile.id)
+      .maybeSingle();
+    if (data) {
+      setTargets({
+        calories: data.calories ?? 2200,
+        protein: Number(data.protein_g ?? 150),
+        carbs: Number(data.carbs_g ?? 250),
+        fat: Number(data.fat_g ?? 80),
+        water: data.water_ml ?? 3000,
+      });
+    } else {
+      setTargets({ calories: 2200, protein: 150, carbs: 250, fat: 80, water: 3000 });
+    }
+  };
+
+  const saveTargets = async (next: { calories: number; protein: number; carbs: number; fat: number; water: number }) => {
+    if (!profile) return;
+    setTargets(next);
+    await supabase
+      .from('nutrition_targets')
+      .upsert({
+        user_id: profile.id,
+        calories: next.calories,
+        protein_g: next.protein,
+        carbs_g: next.carbs,
+        fat_g: next.fat,
+        water_ml: next.water,
+      } satisfies Partial<NutritionTargets> & { user_id: string });
   };
 
   useEffect(() => {
@@ -79,7 +119,26 @@ export default function NutritionPage() {
 
       if (waterError) throw waterError;
 
-      setNutritionLogs(nutrition || []);
+      const logs = nutrition || [];
+      setNutritionLogs(logs);
+      // Build recent foods list from latest 25 entries
+      setRecentFoods(
+        (logs as NutritionLog[])
+          .slice(0, 25)
+          .map((l: NutritionLog) => ({
+            food_name: l.food_name,
+            brand: l.brand,
+            serving_qty: l.serving_qty,
+            serving_unit: l.serving_unit,
+            calories: l.calories,
+            protein_g: l.protein_g,
+            carbs_g: l.carbs_g,
+            fat_g: l.fat_g,
+            fiber_g: l.fiber_g,
+            sugar_g: l.sugar_g,
+            sodium_mg: l.sodium_mg,
+          }))
+      );
       setWaterLogs(water || []);
     } catch (error) {
       console.error('Error fetching nutrition data:', error);
@@ -107,6 +166,19 @@ export default function NutritionPage() {
     }
   };
 
+  const deleteWaterLog = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('water_logs')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+      await fetchNutritionData();
+    } catch (error) {
+      console.error('Error deleting water log:', error);
+    }
+  };
+
   const addFoodLog = async (foodData: {
     meal: string;
     food_name: string;
@@ -130,6 +202,32 @@ export default function NutritionPage() {
       await fetchNutritionData();
     } catch (error) {
       console.error('Error adding food log:', error);
+    }
+  };
+
+  const updateFoodLog = async (id: string, updates: Partial<NutritionLog>) => {
+    try {
+      const { error } = await supabase
+        .from('nutrition_logs')
+        .update(updates)
+        .eq('id', id);
+      if (error) throw error;
+      await fetchNutritionData();
+    } catch (error) {
+      console.error('Error updating food log:', error);
+    }
+  };
+
+  const deleteFoodLog = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('nutrition_logs')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+      await fetchNutritionData();
+    } catch (error) {
+      console.error('Error deleting food log:', error);
     }
   };
 
@@ -183,16 +281,18 @@ export default function NutritionPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Macro Overview */}
         <div className="lg:col-span-1">
-          <MacroRings
-            calories={nutritionTotals.calories}
-            calorieTarget={targets.calories}
-            protein={nutritionTotals.protein}
-            proteinTarget={targets.protein}
-            carbs={nutritionTotals.carbs}
-            carbsTarget={targets.carbs}
-            fat={nutritionTotals.fat}
-            fatTarget={targets.fat}
-          />
+          {targets && (
+            <MacroRings
+              calories={nutritionTotals.calories}
+              calorieTarget={targets.calories}
+              protein={nutritionTotals.protein}
+              proteinTarget={targets.protein}
+              carbs={nutritionTotals.carbs}
+              carbsTarget={targets.carbs}
+              fat={nutritionTotals.fat}
+              fatTarget={targets.fat}
+            />
+          )}
         </div>
 
         {/* Water Tracking */}
@@ -208,14 +308,14 @@ export default function NutritionPage() {
               <div className="flex items-center justify-between">
                 <span className="text-2xl font-bold text-white">{totalWater}ml</span>
                 <span className="text-white/60">
-                  of {targets.water}ml ({Math.round((totalWater / targets.water) * 100)}%)
+                  of {targets?.water ?? 3000}ml ({Math.round((totalWater / (targets?.water ?? 3000)) * 100)}%)
                 </span>
               </div>
               
               <div className="h-2 bg-white/20 rounded-full overflow-hidden">
                 <div 
                   className="h-full bg-gold transition-all duration-300"
-                  style={{ width: `${Math.min((totalWater / targets.water) * 100, 100)}%` }}
+                  style={{ width: `${Math.min((totalWater / (targets?.water ?? 3000)) * 100, 100)}%` }}
                 />
               </div>
 
@@ -252,14 +352,19 @@ export default function NutritionPage() {
                   <p className="text-sm font-medium text-white/60">Recent:</p>
                   <div className="space-y-1 max-h-20 overflow-y-auto">
                     {waterLogs.slice(0, 3).map((log) => (
-                      <div key={log.id} className="flex justify-between text-sm text-white">
-                        <span className="text-white">{log.ml}ml</span>
-                        <span className="text-white/60">
-                          {new Date(log.created_at).toLocaleTimeString([], { 
-                            hour: '2-digit', 
-                            minute: '2-digit' 
-                          })}
-                        </span>
+                      <div key={log.id} className="flex items-center justify-between text-sm text-white">
+                        <div className="flex items-center gap-3">
+                          <span className="text-white">{log.ml}ml</span>
+                          <span className="text-white/60">
+                            {new Date(log.created_at).toLocaleTimeString([], { 
+                              hour: '2-digit', 
+                              minute: '2-digit' 
+                            })}
+                          </span>
+                        </div>
+                        <Button variant="ghost" size="icon" className="hover:bg-white/10" onClick={() => deleteWaterLog(log.id)}>
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </Button>
                       </div>
                     ))}
                   </div>
@@ -288,29 +393,49 @@ export default function NutritionPage() {
                       {mealCalories} cal
                     </Badge>
                   </div>
-                  <Button
-                    variant="outline"
-                    className="border-white/30 text-white hover:bg-white/10"
-                    size="sm"
-                    onClick={() => {
-                      // In a real app, this would open an add food modal
-                      const foodName = prompt('Food name:');
-                      const calories = prompt('Calories:');
-                      if (foodName && calories) {
-                        addFoodLog({
-                          meal: meal.id,
-                          food_name: foodName,
-                          calories: parseInt(calories),
-                          protein_g: 0,
-                          carbs_g: 0,
-                          fat_g: 0,
-                        });
-                      }
+                  <FoodLogDialog
+                    meal={meal.id}
+                    onSubmit={async (payload) => {
+                      await addFoodLog(payload as any);
                     }}
-                  >
-                    <Plus className="w-4 h-4 mr-2 text-gold" />
-                    Add Food
-                  </Button>
+                    trigger={
+                      <Button
+                        variant="outline"
+                        className="border-white/30 text-white hover:bg-white/10"
+                        size="sm"
+                      >
+                        <Plus className="w-4 h-4 mr-2 text-gold" />
+                        Add Food
+                      </Button>
+                    }
+                  />
+                  <MealPresetsDialog
+                    onApply={async (preset: Preset, mult: number) => {
+                      await addFoodLog({
+                        meal: meal.id,
+                        food_name: preset.food_name,
+                        brand: null,
+                        serving_qty: (preset.serving_qty || 1) * mult,
+                        serving_unit: preset.serving_unit || 'serving',
+                        calories: Math.round((preset.calories || 0) * mult),
+                        protein_g: (preset.protein_g || 0) * mult,
+                        carbs_g: (preset.carbs_g || 0) * mult,
+                        fat_g: (preset.fat_g || 0) * mult,
+                        fiber_g: (preset.fiber_g || 0) * mult,
+                        sugar_g: (preset.sugar_g || 0) * mult,
+                        sodium_mg: Math.round((preset.sodium_mg || 0) * mult),
+                      } as any);
+                    }}
+                    trigger={
+                      <Button
+                        variant="outline"
+                        className="border-white/30 text-white hover:bg-white/10 ml-2"
+                        size="sm"
+                      >
+                        Presets
+                      </Button>
+                    }
+                  />
                 </div>
               </CardHeader>
               
@@ -327,11 +452,39 @@ export default function NutritionPage() {
                             F: {Math.round(log.fat_g || 0)}g
                           </p>
                         </div>
-                        <div className="text-right">
-                          <p className="font-semibold text-white">{Math.round(log.calories || 0)} cal</p>
-                          <p className="text-xs text-white/60">
-                            {log.serving_qty} {log.serving_unit}
-                          </p>
+                        <div className="flex items-center gap-2">
+                          <div className="text-right">
+                            <p className="font-semibold text-white">{Math.round(log.calories || 0)} cal</p>
+                            <p className="text-xs text-white/60">
+                              {log.serving_qty} {log.serving_unit}
+                            </p>
+                          </div>
+                          <EditFoodLogDialog
+                            initial={{
+                              id: log.id,
+                              meal: log.meal || 'snacks',
+                              food_name: log.food_name,
+                              brand: log.brand,
+                              serving_qty: log.serving_qty,
+                              serving_unit: log.serving_unit,
+                              calories: log.calories || 0,
+                              protein_g: log.protein_g || 0,
+                              carbs_g: log.carbs_g || 0,
+                              fat_g: log.fat_g || 0,
+                              fiber_g: log.fiber_g || 0,
+                              sugar_g: log.sugar_g || 0,
+                              sodium_mg: log.sodium_mg || 0,
+                            }}
+                            onSave={async (id, updates) => updateFoodLog(id, updates as any)}
+                            trigger={
+                              <Button variant="ghost" size="icon" className="hover:bg-white/10">
+                                <Pencil className="w-4 h-4 text-white/70" />
+                              </Button>
+                            }
+                          />
+                          <Button variant="ghost" size="icon" className="hover:bg-white/10" onClick={() => deleteFoodLog(log.id)}>
+                            <Trash2 className="w-4 h-4 text-destructive" />
+                          </Button>
                         </div>
                       </div>
                     ))}
@@ -352,6 +505,54 @@ export default function NutritionPage() {
         })}
       </div>
 
+      {/* Recent foods quick add */}
+      {recentFoods.length > 0 && (
+        <Card className="mobile-card">
+          <CardHeader>
+            <CardTitle className="text-white">Recent foods</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {recentFoods.slice(0, 10).map((rf: any, idx: number) => (
+                <Button key={idx} variant="outline" className="border-white/30 text-white hover:bg-white/10" size="sm"
+                  onClick={() => addFoodLog({ meal: 'snacks', food_name: rf.food_name as string, calories: Number(rf.calories || 0), protein_g: Number(rf.protein_g || 0), carbs_g: Number(rf.carbs_g || 0), fat_g: Number(rf.fat_g || 0) })}>
+                  {rf.food_name}
+                </Button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Quick targets adjustment */}
+      {targets && (
+      <Card className="mobile-card">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-white"><SettingsIcon className="w-4 h-4 text-gold" /> Daily targets</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div>
+              <p className="text-xs text-white/60">Calories</p>
+              <Input type="number" value={targets.calories} onChange={(e) => saveTargets({ ...targets, calories: Number(e.target.value) })} className="mobile-input" />
+            </div>
+            <div>
+              <p className="text-xs text-white/60">Protein (g)</p>
+              <Input type="number" value={targets.protein} onChange={(e) => saveTargets({ ...targets, protein: Number(e.target.value) })} className="mobile-input" />
+            </div>
+            <div>
+              <p className="text-xs text-white/60">Carbs (g)</p>
+              <Input type="number" value={targets.carbs} onChange={(e) => saveTargets({ ...targets, carbs: Number(e.target.value) })} className="mobile-input" />
+            </div>
+            <div>
+              <p className="text-xs text-white/60">Fat (g)</p>
+              <Input type="number" value={targets.fat} onChange={(e) => saveTargets({ ...targets, fat: Number(e.target.value) })} className="mobile-input" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+      )}
+
       {/* Barcode Scanner Modal Placeholder */}
       {showBarcodeScanner && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4">
@@ -360,14 +561,30 @@ export default function NutritionPage() {
               <CardTitle className="text-white">Barcode Scanner</CardTitle>
             </CardHeader>
             <CardContent className="text-center space-y-4">
-              <div className="w-full h-64 bg-white/10 rounded-lg flex items-center justify-center">
-                <div className="text-center">
-                  <Scan className="w-12 h-12 mx-auto mb-4 text-gold" />
-                  <p className="text-white/60">Camera view would appear here</p>
-                  <p className="text-sm text-white/60 mt-2">
-                    Point camera at barcode to scan
-                  </p>
-                </div>
+              <div className="w-full">
+                <BarcodeScanner
+                  onDetected={async (code: string) => {
+                    try {
+                      const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json`);
+                      const data = await res.json();
+                      const p = data.product;
+                      if (p) {
+                        await addFoodLog({
+                          meal: 'snacks',
+                          food_name: p.product_name || 'Scanned item',
+                          calories: Number(p.nutriments?.['energy-kcal_100g'] || 0),
+                          protein_g: Number(p.nutriments?.proteins_100g || 0),
+                          carbs_g: Number(p.nutriments?.carbohydrates_100g || 0),
+                          fat_g: Number(p.nutriments?.fat_100g || 0),
+                        });
+                        setShowBarcodeScanner(false);
+                      }
+                    } catch (e) {
+                      console.error('Scan lookup failed', e);
+                    }
+                  }}
+                />
+                <p className="text-white/60 text-sm mt-2">Point camera at barcode. Some browsers require HTTPS or localhost for camera access.</p>
               </div>
               <div className="flex gap-2">
                 <Button 
@@ -376,23 +593,6 @@ export default function NutritionPage() {
                   onClick={() => setShowBarcodeScanner(false)}
                 >
                   Cancel
-                </Button>
-                <Button 
-                  className="flex-1 bg-gold hover:bg-gold/90 text-black"
-                  onClick={() => {
-                    // Demo: simulate scanning a banana
-                    addFoodLog({
-                      meal: 'snacks',
-                      food_name: 'Banana (scanned)',
-                      calories: 105,
-                      protein_g: 1.3,
-                      carbs_g: 27,
-                      fat_g: 0.4,
-                    });
-                    setShowBarcodeScanner(false);
-                  }}
-                >
-                  Demo Scan
                 </Button>
               </div>
             </CardContent>
