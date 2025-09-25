@@ -23,7 +23,7 @@ export function TodaysWorkout({ workout }: TodaysWorkoutProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-white">
             <Clock className="h-5 w-5 text-gold" />
-            Today's Workout
+            Today&apos;s Workout
           </CardTitle>
         </CardHeader>
         <CardContent className="text-center py-8">
@@ -68,7 +68,7 @@ export function TodaysWorkout({ workout }: TodaysWorkoutProps) {
         <CardTitle className="flex items-center justify-between text-white">
           <div className="flex items-center gap-2">
             <StatusIcon className={`h-5 w-5 ${config.color}`} />
-            Today's Workout
+            Today&apos;s Workout
           </div>
           <Badge className="bg-gold text-black">
             {workout.status.replace('_', ' ').toUpperCase()}

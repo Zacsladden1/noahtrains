@@ -39,7 +39,7 @@ function SupabaseSetupInstructions() {
           <Alert className="bg-gold/10 border-gold/50">
             <Database className="h-4 w-4" />
             <AlertDescription className="text-gold">
-              Since this is a Next.js project, you'll need to manually configure your Supabase credentials.
+              Since this is a Next.js project, you&apos;ll need to manually configure your Supabase credentials.
             </AlertDescription>
           </Alert>
 
@@ -55,8 +55,8 @@ function SupabaseSetupInstructions() {
                 </a> and create a new project.
               </p>
               <ul className="text-xs text-white/60 space-y-1 ml-4">
-                <li>• Click "New Project"</li>
-                <li>• Name it "noahhtrains-fitness"</li>
+                <li>• Click &quot;New Project&quot;</li>
+                <li>• Name it &quot;noahhtrains-fitness&quot;</li>
                 <li>• Choose your region</li>
                 <li>• Set a strong database password</li>
               </ul>
@@ -118,7 +118,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`}
 
           <Alert className="bg-gold/10 border-gold/50">
             <AlertDescription className="text-gold">
-              Once configured, refresh this page and you'll see the authentication interface.
+              Once configured, refresh this page and you&apos;ll see the authentication interface.
             </AlertDescription>
           </Alert>
         </CardContent>
@@ -157,7 +157,7 @@ export default function HomePage() {
         router.push('/dashboard');
       }
     }
-  }, [user, loading, router]);
+  }, [user, loading, mounted, router]);
 
   // Show setup page if Supabase isn't configured
   if (showSetup) {
