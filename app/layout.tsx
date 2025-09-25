@@ -30,6 +30,8 @@ export default function RootLayout({
     <html lang="en" className={`dark ${cinzel.variable} ${cormorant.variable}`}>
       <body className="min-h-screen bg-background text-foreground">
         {children}
+        {/* Auto-reload if a Next chunk fails to load (Netlify edge caching) */}
+        {typeof window !== 'undefined' && require('@/components/system/chunk-error-reload').default({})}
       </body>
     </html>
   );
