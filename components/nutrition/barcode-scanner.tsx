@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { BrowserMultiFormatReader, NotFoundException } from '@zxing/library';
 
 type Props = {
@@ -14,6 +14,9 @@ export function BarcodeScanner({ onDetected, onManualEntry }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [active, setActive] = useState(false);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
+  const [pendingScan, setPendingScan] = useState<string | null>(null);
+  const [scanResult, setScanResult] = useState<any>(null);
+  const [showConfirmation, setShowConfirmation] = useState(false);
 
   useEffect(() => {
     let stream: MediaStream | null = null;
@@ -60,10 +63,12 @@ export function BarcodeScanner({ onDetected, onManualEntry }: Props) {
               const result = await codeReader.decodeFromVideoElement(
                 videoRef.current,
                 (result) => {
-                  if (result && result.getText()) {
+                  if (result && result.getText() && !pendingScan) {
                     const code = result.getText();
-                    onDetected(code);
-                    return true; // Stop scanning on successful detection
+                    setPendingScan(code);
+                    setScanResult(result);
+                    setShowConfirmation(true);
+                    return true; // Stop scanning when we have a pending scan
                   }
                   return false;
                 },
@@ -97,9 +102,11 @@ export function BarcodeScanner({ onDetected, onManualEntry }: Props) {
 
               const result = await codeReader.decodeOnceFromVideoDevice(undefined, videoRef.current.srcObject as MediaStream);
 
-              if (result && result.getText()) {
+              if (result && result.getText() && !pendingScan) {
                 const code = result.getText();
-                onDetected(code);
+                setPendingScan(code);
+                setScanResult(result);
+                setShowConfirmation(true);
                 return;
               }
             } catch (err) {
@@ -146,6 +153,21 @@ export function BarcodeScanner({ onDetected, onManualEntry }: Props) {
     };
   }, [onDetected, facingMode, onManualEntry]);
 
+  const handleConfirmScan = useCallback(() => {
+    if (pendingScan) {
+      onDetected(pendingScan);
+      setPendingScan(null);
+      setScanResult(null);
+      setShowConfirmation(false);
+    }
+  }, [pendingScan, onDetected]);
+
+  const handleCancelScan = useCallback(() => {
+    setPendingScan(null);
+    setScanResult(null);
+    setShowConfirmation(false);
+  }, []);
+
   return (
     <div className="space-y-3">
       <div className="relative rounded-lg overflow-hidden bg-black/50 aspect-video">
@@ -164,7 +186,7 @@ export function BarcodeScanner({ onDetected, onManualEntry }: Props) {
         <div className="absolute inset-0 pointer-events-none border-2 border-gold m-6 rounded-xl" />
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="text-gold text-sm font-medium">
-            Point camera at barcode
+            {showConfirmation ? 'Barcode detected!' : 'Point camera at barcode to scan'}
           </div>
         </div>
         <button
@@ -175,10 +197,38 @@ export function BarcodeScanner({ onDetected, onManualEntry }: Props) {
           Flip
         </button>
       </div>
-      {!active && !error && (
+
+      {/* Confirmation Dialog */}
+      {showConfirmation && pendingScan && (
+        <div className="bg-black/80 rounded-lg p-4 border border-gold/30">
+          <div className="text-center space-y-3">
+            <div className="text-green-400 text-lg font-semibold">✓ Barcode Detected!</div>
+            <div className="bg-black/40 rounded p-3">
+              <div className="text-white font-mono text-sm break-all">{pendingScan}</div>
+            </div>
+            <p className="text-white/70 text-sm">Confirm this barcode to add the product?</p>
+            <div className="flex gap-2 justify-center">
+              <button
+                onClick={handleConfirmScan}
+                className="px-4 py-2 bg-gold text-black text-sm font-semibold rounded-md hover:bg-gold/80"
+              >
+                Confirm
+              </button>
+              <button
+                onClick={handleCancelScan}
+                className="px-4 py-2 bg-white/10 text-white text-sm rounded-md border border-white/20 hover:bg-white/20"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {!active && !error && !showConfirmation && (
         <div className="text-center">
           <p className="text-white/60 text-sm">Initializing camera...</p>
           <p className="text-white/40 text-xs mt-1">Using ZXing barcode scanner for better compatibility</p>
+          <p className="text-white/40 text-xs mt-1">Point camera at barcode to scan</p>
         </div>
       )}
       {error && (
