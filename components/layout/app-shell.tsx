@@ -128,7 +128,7 @@ export function AppShell({ children }: AppShellProps) {
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
           <aside className="absolute left-0 top-0 h-full w-72 sm:w-80 bg-black border-r border-white/20">
-              <div className="flex items-center justify-between h-16 px-4 border-b border-white/20">
+            <div className="flex items-center justify-between h-16 px-4 border-b border-white/20">
               <h1 className="text-lg sm:text-xl font-heading text-white">Noahhtrains</h1>
               <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(false)}>
                 <X className="w-5 h-5 text-white" />
