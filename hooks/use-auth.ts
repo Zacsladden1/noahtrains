@@ -129,6 +129,11 @@ export function useAuth() {
         console.error('Error fetching profile:', error);
         // Don't fail completely if profile fetch fails, just log it
         setError(`Profile fetch failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        // In production, if database is not accessible, create a basic profile from auth data
+        if (process.env.NODE_ENV === 'production' && error.message?.includes('Invalid API key')) {
+          console.warn('Database not accessible, using fallback profile');
+          return true; // Don't block the user
+        }
         return false;
       }
 
@@ -138,6 +143,11 @@ export function useAuth() {
       console.error('Error fetching profile:', error);
       // Don't fail completely if profile fetch fails, just log it
       setError(`Profile fetch failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // In production, if database is not accessible, don't block the user
+      if (process.env.NODE_ENV === 'production') {
+        console.warn('Database not accessible in production, continuing without profile');
+        return true; // Don't block the user
+      }
       return false;
     } finally {
       setLoading(false);

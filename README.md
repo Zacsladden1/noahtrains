@@ -200,6 +200,27 @@ All tables include Row Level Security policies to ensure data privacy and proper
 
 ## Deployment
 
+### Recent Fixes for Production Issues
+- ✅ **Fixed RLS policies** to be more resilient when JWT role claims aren't present
+- ✅ **Improved authentication** error handling for database connectivity issues
+- ✅ **Added fallback behavior** when database is not accessible in production
+- ✅ **Fixed favicon configuration** for production builds
+
+### Environment Variables (Required for Deployment)
+```
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key-here
+```
+
+### Database Setup for Production
+1. Run the migrations in Supabase SQL Editor:
+   - `supabase/migrations/20250925083255_ancient_smoke.sql`
+   - `supabase/migrations/20250925083403_velvet_prism.sql`
+   - `supabase/migrations/20250925123000_fix_rls_policies.sql`
+   - `supabase/migrations/20250925124500_add_nutrition_targets.sql`
+
+2. The updated RLS policies now handle cases where JWT role claims aren't present, preventing profile fetch timeouts.
+
 ### Supabase
 - Database and authentication are handled by Supabase
 - File storage uses Supabase Storage buckets
@@ -209,6 +230,7 @@ All tables include Row Level Security policies to ensure data privacy and proper
 - Can be deployed to Vercel, Netlify, or any Next.js-compatible platform
 - Ensure environment variables are properly configured
 - Build command: `npm run build`
+- The app now gracefully handles database connectivity issues in production
 
 ## Contributing
 
