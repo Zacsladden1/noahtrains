@@ -169,7 +169,7 @@ npm start
 - Progress tracking and analytics
 
 ### Nutrition System
-- Barcode scanning using @zxing/library
+- Barcode scanning using @zxing/library (improved for iPhone compatibility)
 - Food database integration with Open Food Facts
 - Macro ring visualizations
 - Daily intake tracking by meals

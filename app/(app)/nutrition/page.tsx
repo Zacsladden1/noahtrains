@@ -43,6 +43,7 @@ export default function NutritionPage() {
   const [waterLogs, setWaterLogs] = useState<WaterLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
+  const [showManualEntry, setShowManualEntry] = useState(false);
   const [recentFoods, setRecentFoods] = useState<any[]>([]);
   const [targets, setTargets] = useState<{ calories: number; protein: number; carbs: number; fat: number; water: number } | null>(null);
 
@@ -586,6 +587,10 @@ export default function NutritionPage() {
                     } catch (e) {
                       console.error('Scan lookup failed', e);
                     }
+                  }}
+                  onManualEntry={() => {
+                    setShowBarcodeScanner(false);
+                    setShowManualEntry(true);
                   }}
                 />
                 <p className="text-white/60 text-xs sm:text-sm mt-2">Point camera at barcode. Some browsers require HTTPS or localhost for camera access.</p>

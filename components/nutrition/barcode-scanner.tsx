@@ -1,13 +1,16 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { BrowserMultiFormatReader, NotFoundException } from '@zxing/library';
 
 type Props = {
   onDetected: (code: string) => void;
+  onManualEntry?: () => void;
 };
 
-export function BarcodeScanner({ onDetected }: Props) {
+export function BarcodeScanner({ onDetected, onManualEntry }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [active, setActive] = useState(false);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
@@ -15,44 +18,117 @@ export function BarcodeScanner({ onDetected }: Props) {
   useEffect(() => {
     let stream: MediaStream | null = null;
     let rafId: number | null = null;
-    let detector: any = null;
+    let codeReader: BrowserMultiFormatReader | null = null;
+    let isScanning = false;
 
     const start = async () => {
       try {
-        // Camera access
+        // Get camera access with iOS-specific optimizations
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        const videoConstraints = {
+          facingMode: { ideal: facingMode },
+          width: { ideal: isIOS ? 1920 : 1280 }, // Higher resolution for iOS
+          height: { ideal: isIOS ? 1080 : 720 },
+          frameRate: { ideal: 30, max: 60 }, // Better frame rate for mobile
+        };
+
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: facingMode } },
+          video: videoConstraints,
           audio: false,
         });
+
         if (!videoRef.current) return;
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
         setActive(true);
 
-        // BarcodeDetector (supported in modern Chrome/Safari). Fallback handled below.
-        // @ts-ignore
-        if ('BarcodeDetector' in window) {
-          // @ts-ignore
-          detector = new window.BarcodeDetector({ formats: ['ean_13', 'qr_code', 'code_128', 'upc_e', 'upc_a'] });
+        // Use ZXing library for reliable barcode scanning
+        codeReader = new BrowserMultiFormatReader();
+
+        // Configure scanner for mobile devices
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+        if (isMobile) {
+          // On mobile, use continuous scanning with better performance
           const scan = async () => {
+            if (!videoRef.current || !codeReader || isScanning) return;
+
             try {
-              if (videoRef.current && detector) {
-                const codes = await detector.detect(videoRef.current);
-                if (codes && codes.length > 0) {
-                  onDetected(String(codes[0].rawValue || codes[0].rawValue || codes[0].value || ''));
-                  return;
+              isScanning = true;
+
+              // Scan from video element with mobile-optimized settings
+              const result = await codeReader.decodeFromVideoElement(
+                videoRef.current,
+                (result) => {
+                  if (result && result.getText()) {
+                    const code = result.getText();
+                    onDetected(code);
+                    return true; // Stop scanning on successful detection
+                  }
+                  return false;
+                },
+                (err) => {
+                  // NotFoundException is expected when no barcode is found
+                  if (!(err instanceof NotFoundException)) {
+                    console.warn('Mobile scanning error:', err);
+                  }
                 }
+              );
+            } catch (err) {
+              // NotFoundException is expected when no barcode is found
+              if (!(err instanceof NotFoundException)) {
+                console.warn('Scanning error:', err);
               }
-            } catch (_) {}
-            rafId = window.requestAnimationFrame(scan);
+            } finally {
+              isScanning = false;
+              rafId = window.requestAnimationFrame(scan);
+            }
           };
+
+          // Start scanning
           rafId = window.requestAnimationFrame(scan);
         } else {
-          setError('BarcodeDetector not supported. Enter barcode manually.');
+          // Desktop: use single-shot scanning
+          const scan = async () => {
+            if (!videoRef.current || !codeReader || isScanning) return;
+
+            try {
+              isScanning = true;
+
+              const result = await codeReader.decodeOnceFromVideoDevice(undefined, videoRef.current.srcObject as MediaStream);
+
+              if (result && result.getText()) {
+                const code = result.getText();
+                onDetected(code);
+                return;
+              }
+            } catch (err) {
+              // NotFoundException is expected when no barcode is found
+              if (!(err instanceof NotFoundException)) {
+                console.warn('Desktop scanning error:', err);
+              }
+            } finally {
+              isScanning = false;
+              rafId = window.requestAnimationFrame(scan);
+            }
+          };
+
+          // Start scanning
+          rafId = window.requestAnimationFrame(scan);
         }
+
       } catch (err: any) {
-        console.error(err);
-        setError('Camera access failed. Allow camera permissions and use HTTPS or localhost.');
+        console.error('Camera/Scanner setup error:', err);
+
+        if (err.name === 'NotAllowedError') {
+          setError('Camera access denied. Please allow camera permissions.');
+        } else if (err.name === 'NotFoundError') {
+          setError('No camera found. Please ensure your device has a camera.');
+        } else if (err.name === 'NotReadableError') {
+          setError('Camera is being used by another application.');
+        } else {
+          setError(`Scanner initialization failed: ${err.message || 'Unknown error'}`);
+        }
       }
     };
 
@@ -60,16 +136,37 @@ export function BarcodeScanner({ onDetected }: Props) {
 
     return () => {
       if (rafId) cancelAnimationFrame(rafId);
-      if (stream) stream.getTracks().forEach((t) => t.stop());
+      if (codeReader) {
+        codeReader.reset();
+      }
+      if (stream) {
+        stream.getTracks().forEach((t) => t.stop());
+      }
       setActive(false);
     };
-  }, [onDetected, facingMode]);
+  }, [onDetected, facingMode, onManualEntry]);
 
   return (
     <div className="space-y-3">
       <div className="relative rounded-lg overflow-hidden bg-black/50 aspect-video">
-        <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />
+        <video
+          ref={videoRef}
+          className="w-full h-full object-cover"
+          playsInline
+          muted
+          autoPlay
+        />
+        <canvas
+          ref={canvasRef}
+          className="absolute inset-0 w-full h-full pointer-events-none"
+          style={{ display: 'none' }}
+        />
         <div className="absolute inset-0 pointer-events-none border-2 border-gold m-6 rounded-xl" />
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="text-gold text-sm font-medium">
+            Point camera at barcode
+          </div>
+        </div>
         <button
           type="button"
           onClick={() => setFacingMode((m) => (m === 'environment' ? 'user' : 'environment'))}
@@ -78,8 +175,33 @@ export function BarcodeScanner({ onDetected }: Props) {
           Flip
         </button>
       </div>
-      {!active && !error && <p className="text-white/60 text-sm">Starting camera…</p>}
-      {error && <p className="text-red-400 text-sm">{error}</p>}
+      {!active && !error && (
+        <div className="text-center">
+          <p className="text-white/60 text-sm">Initializing camera...</p>
+          <p className="text-white/40 text-xs mt-1">Using ZXing barcode scanner for better compatibility</p>
+        </div>
+      )}
+      {error && (
+        <div className="text-center space-y-2">
+          <p className="text-red-400 text-sm">{error}</p>
+          <div className="flex gap-2 justify-center">
+            <button
+              onClick={() => window.location.reload()}
+              className="px-3 py-1 bg-gold text-black text-xs rounded-md hover:bg-gold/80"
+            >
+              Retry
+            </button>
+            {onManualEntry && (
+              <button
+                onClick={onManualEntry}
+                className="px-3 py-1 bg-white/10 text-white text-xs rounded-md border border-white/20 hover:bg-white/20"
+              >
+                Enter Manually
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
