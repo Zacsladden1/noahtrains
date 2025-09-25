@@ -169,7 +169,7 @@ npm start
 - Progress tracking and analytics
 
 ### Nutrition System
-- Barcode scanning using @zxing/library (improved for iPhone compatibility)
+- Barcode scanning using react-barcode-scanner (optimized for iPhone 16 and modern mobile devices)
 - Food database integration with Open Food Facts
 - Macro ring visualizations
 - Daily intake tracking by meals
@@ -205,6 +205,7 @@ All tables include Row Level Security policies to ensure data privacy and proper
 - ✅ **Improved authentication** error handling for database connectivity issues
 - ✅ **Added fallback behavior** when database is not accessible in production
 - ✅ **Fixed favicon configuration** for production builds
+- ✅ **Upgraded barcode scanner** to react-barcode-scanner for better iPhone 16 compatibility
 
 ### Environment Variables (Required for Deployment)
 ```
