@@ -129,7 +129,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`}
 };
 
 export default function HomePage() {
-  const { user, loading } = useAuth();
+  const { user, loading, error } = useAuth();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [authStalled, setAuthStalled] = useState(false);
@@ -140,17 +140,22 @@ export default function HomePage() {
     setMounted(true);
   }, []);
 
-  // If auth loading/mounting stalls, show the auth form as a fallback after 1.5s
+  // If auth loading/mounting stalls, show the auth form as a fallback after 3s
   useEffect(() => {
     const t = setTimeout(() => {
       setAuthStalled(true);
-    }, 1500);
+    }, 3000);
     return () => clearTimeout(t);
   }, []);
 
   useEffect(() => {
     if (user && !loading && mounted) {
-      router.push('/dashboard');
+      const url = `/dashboard?v=${Date.now()}`;
+      if (typeof window !== 'undefined') {
+        window.location.replace(url);
+      } else {
+        router.push('/dashboard');
+      }
     }
   }, [user, loading, router]);
 
@@ -176,6 +181,53 @@ export default function HomePage() {
     );
   }
 
+  // If there's an auth error, show a message but still allow access to auth form
+  if (error && authStalled) {
+    return (
+      <>
+        <AuthForm />
+        <div className="fixed top-4 left-4 max-w-sm">
+          <Alert className="bg-red-500/10 border-red-500/50">
+            <AlertDescription className="text-red-400">
+              Authentication error: {error}
+              <br />
+              <button
+                onClick={() => window.location.reload()}
+                className="text-gold hover:underline mt-1"
+              >
+                Try refreshing the page
+              </button>
+            </AlertDescription>
+          </Alert>
+        </div>
+        {showDebug && (
+          <div className="fixed bottom-4 right-4 w-80 p-3 bg-white/5 border border-white/10 rounded-lg text-xs text-white">
+            <div className="flex items-center justify-between mb-2">
+              <strong>Debug</strong>
+              <button onClick={() => setShowDebug(false)} className="text-white/60 hover:text-white">✕</button>
+            </div>
+            <div className="space-y-1">
+              <div><strong>user:</strong> <span className="break-words">{JSON.stringify(user)}</span></div>
+              <div><strong>loading:</strong> {String(loading)}</div>
+              <div><strong>authStalled:</strong> {String(authStalled)}</div>
+              <div><strong>error:</strong> {error}</div>
+              <div><strong>NEXT_PUBLIC_SUPABASE_URL:</strong> {String(process.env.NEXT_PUBLIC_SUPABASE_URL)}</div>
+              <div><strong>NEXT_PUBLIC_SUPABASE_ANON_KEY:</strong> {String(Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY))}</div>
+            </div>
+          </div>
+        )}
+        {!showDebug && (
+          <button
+            onClick={() => setShowDebug(true)}
+            className="fixed bottom-4 right-4 bg-gold text-black px-3 py-2 rounded-md text-sm"
+          >
+            Show Debug
+          </button>
+        )}
+      </>
+    );
+  }
+
   if (user) {
     return null; // Redirecting
   }
@@ -193,6 +245,7 @@ export default function HomePage() {
             <div><strong>user:</strong> <span className="break-words">{JSON.stringify(user)}</span></div>
             <div><strong>loading:</strong> {String(loading)}</div>
             <div><strong>authStalled:</strong> {String(authStalled)}</div>
+            <div><strong>error:</strong> {error}</div>
             <div><strong>NEXT_PUBLIC_SUPABASE_URL:</strong> {String(process.env.NEXT_PUBLIC_SUPABASE_URL)}</div>
             <div><strong>NEXT_PUBLIC_SUPABASE_ANON_KEY:</strong> {String(Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY))}</div>
           </div>

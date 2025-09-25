@@ -47,7 +47,7 @@ export function useAuth() {
 
       if (error) {
         console.error('Auth session error:', error);
-        setError(error.message);
+        setError(`Auth session error: ${error.message}`);
         setLoading(false);
         return;
       }
@@ -65,7 +65,7 @@ export function useAuth() {
         initTimeout = null;
       }
       console.error('Auth initialization error:', err);
-      setError('Failed to initialize authentication');
+      setError(`Auth initialization error: ${err.message || 'Unknown error'}`);
       setLoading(false);
     });
 
@@ -74,11 +74,19 @@ export function useAuth() {
       if (!mounted) return;
       setUser(session?.user ?? null);
       if (session?.user) {
-        let ok = false;
-        for (let i = 0; i < 2; i++) {
-          ok = await fetchProfile(session.user.id);
-          if (ok) break;
-          await new Promise(r => setTimeout(r, 500));
+        try {
+          let ok = false;
+          for (let i = 0; i < 2; i++) {
+            ok = await fetchProfile(session.user.id);
+            if (ok) break;
+            await new Promise(r => setTimeout(r, 500));
+          }
+          if (!ok) {
+            console.warn('Failed to fetch profile after multiple attempts');
+          }
+        } catch (error) {
+          console.error('Error in auth state change:', error);
+          setError(`Auth state change error: ${error.message}`);
         }
       } else {
         setProfile(null);
@@ -119,6 +127,8 @@ export function useAuth() {
 
       if (error) {
         console.error('Error fetching profile:', error);
+        // Don't fail completely if profile fetch fails, just log it
+        setError(`Profile fetch failed: ${error.message}`);
         return false;
       }
 
@@ -126,6 +136,8 @@ export function useAuth() {
       return true;
     } catch (error) {
       console.error('Error fetching profile:', error);
+      // Don't fail completely if profile fetch fails, just log it
+      setError(`Profile fetch failed: ${error.message}`);
       return false;
     } finally {
       setLoading(false);
@@ -141,35 +153,41 @@ export function useAuth() {
   };
 
   const signUp = async (email: string, password: string, fullName: string) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-        },
-      },
-    });
-
-    if (data.user && !error) {
-      // Create profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert([
-          {
-            id: data.user.id,
-            email: data.user.email!,
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
             full_name: fullName,
-            role: 'client',
           },
-        ]);
+        },
+      });
 
-      if (profileError) {
-        console.error('Error creating profile:', profileError);
+      if (data.user && !error) {
+        // Create profile
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert([
+            {
+              id: data.user.id,
+              email: data.user.email!,
+              full_name: fullName,
+              role: 'client',
+            },
+          ]);
+
+        if (profileError) {
+          console.error('Error creating profile:', profileError);
+          setError(`Profile creation failed: ${profileError.message}`);
+        }
       }
-    }
 
-    return { data, error };
+      return { data, error };
+    } catch (error) {
+      console.error('Sign up error:', error);
+      return { data: null, error: { message: 'Sign up failed' } };
+    }
   };
 
   const signOut = async () => {
