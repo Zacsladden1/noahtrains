@@ -6,7 +6,7 @@ import nextDynamic from 'next/dynamic';
 const ChunkErrorReload = nextDynamic(() => import('@/components/system/chunk-error-reload'), { ssr: false });
 
 // Avoid serving stale HTML that references old chunks
-export const dynamicMode = 'force-dynamic';
+export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 const cinzel = Cinzel({
