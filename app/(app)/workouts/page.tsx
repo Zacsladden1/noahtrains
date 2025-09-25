@@ -138,33 +138,34 @@ export default function WorkoutsPage() {
   }
 
   return (
-    <div className="mobile-padding space-y-6 bg-black min-h-screen">
+    <div className="mobile-padding mobile-spacing bg-black min-h-screen">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl md:text-3xl font-heading text-white">Workouts</h1>
-          <p className="text-white/60">Track your training progress</p>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-heading text-white">Workouts</h1>
+          <p className="text-white/60 text-xs sm:text-sm">Track your training progress</p>
         </div>
-        <Button onClick={createNewWorkout} className="bg-gold hover:bg-gold/90 text-black">
-          <Plus className="w-4 h-4 mr-2" />
-          New Workout
+        <Button onClick={createNewWorkout} className="bg-gold hover:bg-gold/90 text-black text-xs sm:text-sm px-3 sm:px-4">
+          <Plus className="w-4 h-4 mr-1 sm:mr-2" />
+          <span className="hidden sm:inline">New Workout</span>
+          <span className="sm:hidden">New</span>
         </Button>
       </div>
 
-      <Tabs defaultValue="history" className="space-y-6">
+      <Tabs defaultValue="history" className="mobile-spacing">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="history">History</TabsTrigger>
           <TabsTrigger value="exercises">Exercises</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="history" className="space-y-4">
+        <TabsContent value="history" className="mobile-spacing">
           {workouts.length === 0 ? (
             <Card className="mobile-card">
               <CardContent className="text-center py-12">
                 <Dumbbell className="w-12 h-12 text-white/30 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2 text-white">No workouts yet</h3>
-                <p className="text-white/60 mb-4">
+                <h3 className="text-base sm:text-lg font-semibold mb-2 text-white">No workouts yet</h3>
+                <p className="text-white/60 mb-4 text-sm">
                   Start your fitness journey by creating your first workout
                 </p>
                 <Button onClick={createNewWorkout} className="bg-gold hover:bg-gold/90 text-black">
@@ -174,17 +175,17 @@ export default function WorkoutsPage() {
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-4">
+            <div className="mobile-spacing">
               {workouts.map((workout) => (
                 <Card key={workout.id} className="mobile-card hover:border-gold/50 transition-colors">
-                  <CardContent className="p-6">
+                  <CardContent className="p-4 sm:p-6">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-2 sm:space-x-4 flex-1 min-w-0">
+                        <div className="flex items-center space-x-1 sm:space-x-2">
                           {getStatusIcon(workout.status)}
                           <div>
-                            <h3 className="font-semibold text-white">{workout.name}</h3>
-                            <div className="flex items-center space-x-4 text-sm text-white/60">
+                            <h3 className="font-semibold text-white text-sm sm:text-base truncate">{workout.name}</h3>
+                            <div className="flex items-center space-x-2 sm:space-x-4 text-xs sm:text-sm text-white/60">
                               <span className="flex items-center">
                                 <Calendar className="w-4 h-4 mr-1 text-gold" />
                                 {new Date(workout.created_at).toLocaleDateString()}
@@ -204,7 +205,7 @@ export default function WorkoutsPage() {
                         </div>
                       </div>
                       
-                      <div className="flex items-center space-x-3">
+                      <div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
                         <Badge className={getStatusColor(workout.status)}>
                           {workout.status.replace('_', ' ').toUpperCase()}
                         </Badge>
@@ -215,7 +216,7 @@ export default function WorkoutsPage() {
                               : 'bg-gold hover:bg-gold/90 text-black'
                             }
                             variant={workout.status === 'completed' ? 'outline' : 'default'}
-                            size="sm"
+                            size="sm" className="text-xs sm:text-sm"
                           >
                             {workout.status === 'completed' ? 'View' : 'Continue'}
                           </Button>
@@ -229,7 +230,7 @@ export default function WorkoutsPage() {
           )}
         </TabsContent>
 
-        <TabsContent value="exercises" className="space-y-4">
+        <TabsContent value="exercises" className="mobile-spacing">
           <div className="flex items-center space-x-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/50 w-4 h-4" />
@@ -241,20 +242,20 @@ export default function WorkoutsPage() {
               />
             </div>
             <Button variant="outline" className="border-white/30 text-white hover:bg-white/10">
-              <Filter className="w-4 h-4 mr-2 text-gold" />
-              Filter
+              <Filter className="w-4 h-4 sm:mr-2 text-gold" />
+              <span className="hidden sm:inline">Filter</span>
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
             {filteredExercises.map((exercise) => (
               <Card key={exercise.id} className="mobile-card hover:border-gold/50 transition-colors">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg text-white">{exercise.name}</CardTitle>
+                <CardHeader className="pb-2 sm:pb-3">
+                  <CardTitle className="text-base sm:text-lg text-white">{exercise.name}</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
+                <CardContent className="space-y-2 sm:space-y-3">
                   {exercise.description && (
-                    <p className="text-sm text-white/60 line-clamp-2">
+                    <p className="text-xs sm:text-sm text-white/60 line-clamp-2">
                       {exercise.description}
                     </p>
                   )}
@@ -283,15 +284,15 @@ export default function WorkoutsPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="analytics" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+        <TabsContent value="analytics" className="mobile-spacing">
+          <div className="grid mobile-grid-3 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
             <Card className="mobile-card">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-white">Total Workouts</CardTitle>
+                <CardTitle className="text-xs sm:text-sm font-medium text-white">Total Workouts</CardTitle>
                 <TrendingUp className="h-4 w-4 text-gold" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-white">{workouts.length}</div>
+                <div className="text-xl sm:text-2xl font-bold text-white">{workouts.length}</div>
                 <p className="text-xs text-white/60">
                   {workouts.filter(w => w.status === 'completed').length} completed
                 </p>
@@ -300,11 +301,11 @@ export default function WorkoutsPage() {
 
             <Card className="mobile-card">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-white">This Month</CardTitle>
+                <CardTitle className="text-xs sm:text-sm font-medium text-white">This Month</CardTitle>
                 <Calendar className="h-4 w-4 text-gold" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-white">
+                <div className="text-xl sm:text-2xl font-bold text-white">
                   {workouts.filter(w => {
                     const workoutDate = new Date(w.created_at);
                     const now = new Date();
@@ -318,11 +319,11 @@ export default function WorkoutsPage() {
 
             <Card className="mobile-card">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-white">Avg Duration</CardTitle>
+                <CardTitle className="text-xs sm:text-sm font-medium text-white">Avg Duration</CardTitle>
                 <Clock className="h-4 w-4 text-gold" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-white">45</div>
+                <div className="text-xl sm:text-2xl font-bold text-white">45</div>
                 <p className="text-xs text-white/60">minutes</p>
               </CardContent>
             </Card>
@@ -331,14 +332,14 @@ export default function WorkoutsPage() {
           {/* Placeholder for charts */}
           <Card className="mobile-card">
             <CardHeader>
-              <CardTitle className="text-white">Workout Frequency</CardTitle>
+              <CardTitle className="text-base sm:text-lg text-white">Workout Frequency</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="h-64 flex items-center justify-center text-white/60">
                 <div className="text-center">
                   <TrendingUp className="w-12 h-12 mx-auto mb-4 opacity-50 text-gold" />
-                  <p>Workout analytics will appear here</p>
-                  <p className="text-sm">Complete more workouts to see trends</p>
+                  <p className="text-sm sm:text-base">Workout analytics will appear here</p>
+                  <p className="text-xs sm:text-sm">Complete more workouts to see trends</p>
                 </div>
               </div>
             </CardContent>

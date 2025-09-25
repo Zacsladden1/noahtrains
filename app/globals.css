@@ -135,17 +135,40 @@
 
 /* Mobile-first utilities */
 .mobile-padding {
-  @apply px-4 py-6;
+  @apply px-3 py-4 sm:px-4 sm:py-6;
 }
 
 .mobile-card {
-  @apply bg-black border border-white/20 rounded-2xl;
+  @apply bg-black border border-white/20 rounded-xl sm:rounded-2xl;
 }
 
 .mobile-input {
-  @apply h-12 bg-black border-white/30 text-white placeholder:text-white/50 focus:border-primary focus:ring-primary;
+  @apply h-11 sm:h-12 bg-black border-white/30 text-white placeholder:text-white/50 focus:border-primary focus:ring-primary text-base;
 }
 
 .mobile-button {
-  @apply h-12 px-6 text-base font-semibold rounded-xl;
+  @apply h-11 sm:h-12 px-4 sm:px-6 text-sm sm:text-base font-semibold rounded-lg sm:rounded-xl;
+}
+
+/* Mobile-specific improvements */
+@media (max-width: 640px) {
+  .mobile-grid-2 {
+    @apply grid-cols-1 gap-3;
+  }
+  
+  .mobile-grid-3 {
+    @apply grid-cols-1 gap-3;
+  }
+  
+  .mobile-grid-4 {
+    @apply grid-cols-2 gap-3;
+  }
+  
+  .mobile-text-responsive {
+    @apply text-sm leading-relaxed;
+  }
+  
+  .mobile-spacing {
+    @apply space-y-3;
+  }
 }

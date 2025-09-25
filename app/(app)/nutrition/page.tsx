@@ -253,32 +253,32 @@ export default function NutritionPage() {
   };
 
   return (
-    <div className="mobile-padding space-y-6 bg-black min-h-screen">
+    <div className="mobile-padding mobile-spacing bg-black min-h-screen">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl md:text-3xl font-heading text-white">Nutrition</h1>
-          <p className="text-white/60">Track your daily intake</p>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-heading text-white">Nutrition</h1>
+          <p className="text-white/60 text-xs sm:text-sm">Track your daily intake</p>
         </div>
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-2 sm:space-x-3">
           <Input
             type="date"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
-            className="w-auto mobile-input"
+            className="w-auto mobile-input text-xs sm:text-sm"
           />
           <Button
             onClick={() => setShowBarcodeScanner(true)}
             variant="outline"
-            className="border-white/30 text-white hover:bg-white/10"
+            className="border-white/30 text-white hover:bg-white/10 text-xs sm:text-sm px-2 sm:px-3"
           >
-            <Scan className="w-4 h-4 mr-2 text-gold" />
-            Scan
+            <Scan className="w-4 h-4 sm:mr-2 text-gold" />
+            <span className="hidden sm:inline">Scan</span>
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
         {/* Macro Overview */}
         <div className="lg:col-span-1">
           {targets && (
@@ -300,14 +300,14 @@ export default function NutritionPage() {
           <Card className="mobile-card h-full">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-white">
-                <Droplets className="w-5 h-5 text-gold" />
+                <Droplets className="w-4 h-4 sm:w-5 sm:h-5 text-gold" />
                 Water Intake
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3 sm:space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-2xl font-bold text-white">{totalWater}ml</span>
-                <span className="text-white/60">
+                <span className="text-xl sm:text-2xl font-bold text-white">{totalWater}ml</span>
+                <span className="text-white/60 text-xs sm:text-sm">
                   of {targets?.water ?? 3000}ml ({Math.round((totalWater / (targets?.water ?? 3000)) * 100)}%)
                 </span>
               </div>
@@ -319,10 +319,10 @@ export default function NutritionPage() {
                 />
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex gap-1 sm:gap-2">
                 <Button 
                   variant="outline"
-                  className="flex-1 border-white/30 text-white hover:bg-white/10"
+                  className="flex-1 border-white/30 text-white hover:bg-white/10 text-xs sm:text-sm"
                   size="sm" 
                   onClick={() => quickAddWater(250)}
                 >
@@ -330,7 +330,7 @@ export default function NutritionPage() {
                 </Button>
                 <Button 
                   variant="outline"
-                  className="flex-1 border-white/30 text-white hover:bg-white/10"
+                  className="flex-1 border-white/30 text-white hover:bg-white/10 text-xs sm:text-sm"
                   size="sm" 
                   onClick={() => quickAddWater(500)}
                 >
@@ -338,7 +338,7 @@ export default function NutritionPage() {
                 </Button>
                 <Button 
                   variant="outline"
-                  className="flex-1 border-white/30 text-white hover:bg-white/10"
+                  className="flex-1 border-white/30 text-white hover:bg-white/10 text-xs sm:text-sm"
                   size="sm" 
                   onClick={() => quickAddWater(750)}
                 >
@@ -348,11 +348,11 @@ export default function NutritionPage() {
 
               {/* Recent water logs */}
               {waterLogs.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-white/60">Recent:</p>
+                <div className="space-y-1 sm:space-y-2">
+                  <p className="text-xs sm:text-sm font-medium text-white/60">Recent:</p>
                   <div className="space-y-1 max-h-20 overflow-y-auto">
                     {waterLogs.slice(0, 3).map((log) => (
-                      <div key={log.id} className="flex items-center justify-between text-sm text-white">
+                      <div key={log.id} className="flex items-center justify-between text-xs sm:text-sm text-white">
                         <div className="flex items-center gap-3">
                           <span className="text-white">{log.ml}ml</span>
                           <span className="text-white/60">
@@ -376,7 +376,7 @@ export default function NutritionPage() {
       </div>
 
       {/* Meals */}
-      <div className="space-y-4">
+      <div className="mobile-spacing">
         {mealTypes.map((meal) => {
           const MealIcon = meal.icon;
           const mealLogs = getMealLogs(meal.id);
@@ -387,74 +387,78 @@ export default function NutritionPage() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
-                    <MealIcon className={`w-5 h-5 ${meal.color}`} />
-                    <CardTitle className="text-lg text-white">{meal.name}</CardTitle>
+                    <MealIcon className={`w-4 h-4 sm:w-5 sm:h-5 ${meal.color}`} />
+                    <CardTitle className="text-base sm:text-lg text-white">{meal.name}</CardTitle>
                     <Badge className="bg-gold text-black">
                       {mealCalories} cal
                     </Badge>
                   </div>
-                  <FoodLogDialog
-                    meal={meal.id}
-                    onSubmit={async (payload) => {
-                      await addFoodLog(payload as any);
-                    }}
-                    trigger={
-                      <Button
-                        variant="outline"
-                        className="border-white/30 text-white hover:bg-white/10"
-                        size="sm"
-                      >
-                        <Plus className="w-4 h-4 mr-2 text-gold" />
-                        Add Food
-                      </Button>
-                    }
-                  />
-                  <MealPresetsDialog
-                    onApply={async (preset: Preset, mult: number) => {
-                      await addFoodLog({
-                        meal: meal.id,
-                        food_name: preset.food_name,
-                        brand: null,
-                        serving_qty: (preset.serving_qty || 1) * mult,
-                        serving_unit: preset.serving_unit || 'serving',
-                        calories: Math.round((preset.calories || 0) * mult),
-                        protein_g: (preset.protein_g || 0) * mult,
-                        carbs_g: (preset.carbs_g || 0) * mult,
-                        fat_g: (preset.fat_g || 0) * mult,
-                        fiber_g: (preset.fiber_g || 0) * mult,
-                        sugar_g: (preset.sugar_g || 0) * mult,
-                        sodium_mg: Math.round((preset.sodium_mg || 0) * mult),
-                      } as any);
-                    }}
-                    trigger={
-                      <Button
-                        variant="outline"
-                        className="border-white/30 text-white hover:bg-white/10 ml-2"
-                        size="sm"
-                      >
-                        Presets
-                      </Button>
-                    }
-                  />
+                  <div className="flex items-center space-x-1 sm:space-x-2">
+                    <FoodLogDialog
+                      meal={meal.id}
+                      onSubmit={async (payload) => {
+                        await addFoodLog(payload as any);
+                      }}
+                      trigger={
+                        <Button
+                          variant="outline"
+                          className="border-white/30 text-white hover:bg-white/10 text-xs sm:text-sm px-2 sm:px-3"
+                          size="sm"
+                        >
+                          <Plus className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2 text-gold" />
+                          <span className="hidden sm:inline">Add Food</span>
+                          <span className="sm:hidden">Add</span>
+                        </Button>
+                      }
+                    />
+                    <MealPresetsDialog
+                      onApply={async (preset: Preset, mult: number) => {
+                        await addFoodLog({
+                          meal: meal.id,
+                          food_name: preset.food_name,
+                          brand: null,
+                          serving_qty: (preset.serving_qty || 1) * mult,
+                          serving_unit: preset.serving_unit || 'serving',
+                          calories: Math.round((preset.calories || 0) * mult),
+                          protein_g: (preset.protein_g || 0) * mult,
+                          carbs_g: (preset.carbs_g || 0) * mult,
+                          fat_g: (preset.fat_g || 0) * mult,
+                          fiber_g: (preset.fiber_g || 0) * mult,
+                          sugar_g: (preset.sugar_g || 0) * mult,
+                          sodium_mg: Math.round((preset.sodium_mg || 0) * mult),
+                        } as any);
+                      }}
+                      trigger={
+                        <Button
+                          variant="outline"
+                          className="border-white/30 text-white hover:bg-white/10 text-xs sm:text-sm px-2 sm:px-3"
+                          size="sm"
+                        >
+                          <span className="hidden sm:inline">Presets</span>
+                          <span className="sm:hidden">Pre</span>
+                        </Button>
+                      }
+                    />
+                  </div>
                 </div>
               </CardHeader>
               
               {mealLogs.length > 0 && (
                 <CardContent>
-                  <div className="space-y-2">
+                  <div className="space-y-1 sm:space-y-2">
                     {mealLogs.map((log) => (
-                      <div key={log.id} className="flex items-center justify-between p-2 bg-white/10 rounded">
+                      <div key={log.id} className="flex items-center justify-between p-2 sm:p-3 bg-white/10 rounded">
                         <div>
-                          <p className="font-medium text-white">{log.food_name}</p>
+                          <p className="font-medium text-white text-sm sm:text-base">{log.food_name}</p>
                           <p className="text-xs text-white/60">
                             P: {Math.round(log.protein_g || 0)}g • 
                             C: {Math.round(log.carbs_g || 0)}g • 
                             F: {Math.round(log.fat_g || 0)}g
                           </p>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1 sm:gap-2">
                           <div className="text-right">
-                            <p className="font-semibold text-white">{Math.round(log.calories || 0)} cal</p>
+                            <p className="font-semibold text-white text-sm sm:text-base">{Math.round(log.calories || 0)} cal</p>
                             <p className="text-xs text-white/60">
                               {log.serving_qty} {log.serving_unit}
                             </p>
@@ -478,12 +482,12 @@ export default function NutritionPage() {
                             onSave={async (id, updates) => updateFoodLog(id, updates as any)}
                             trigger={
                               <Button variant="ghost" size="icon" className="hover:bg-white/10">
-                                <Pencil className="w-4 h-4 text-white/70" />
+                                <Pencil className="w-3 h-3 sm:w-4 sm:h-4 text-white/70" />
                               </Button>
                             }
                           />
                           <Button variant="ghost" size="icon" className="hover:bg-white/10" onClick={() => deleteFoodLog(log.id)}>
-                            <Trash2 className="w-4 h-4 text-destructive" />
+                            <Trash2 className="w-3 h-3 sm:w-4 sm:h-4 text-destructive" />
                           </Button>
                         </div>
                       </div>
@@ -495,8 +499,8 @@ export default function NutritionPage() {
               {mealLogs.length === 0 && (
                 <CardContent>
                   <div className="text-center py-8 text-white/60">
-                    <Utensils className="w-8 h-8 mx-auto mb-2 opacity-50 text-gold" />
-                    <p>No foods logged for {meal.name.toLowerCase()}</p>
+                    <Utensils className="w-6 h-6 sm:w-8 sm:h-8 mx-auto mb-2 opacity-50 text-gold" />
+                    <p className="text-sm sm:text-base">No foods logged for {meal.name.toLowerCase()}</p>
                   </div>
                 </CardContent>
               )}
@@ -509,12 +513,12 @@ export default function NutritionPage() {
       {recentFoods.length > 0 && (
         <Card className="mobile-card">
           <CardHeader>
-            <CardTitle className="text-white">Recent foods</CardTitle>
+            <CardTitle className="text-base sm:text-lg text-white">Recent foods</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1 sm:gap-2">
               {recentFoods.slice(0, 10).map((rf: any, idx: number) => (
-                <Button key={idx} variant="outline" className="border-white/30 text-white hover:bg-white/10" size="sm"
+                <Button key={idx} variant="outline" className="border-white/30 text-white hover:bg-white/10 text-xs sm:text-sm px-2 sm:px-3" size="sm"
                   onClick={() => addFoodLog({ meal: 'snacks', food_name: rf.food_name as string, calories: Number(rf.calories || 0), protein_g: Number(rf.protein_g || 0), carbs_g: Number(rf.carbs_g || 0), fat_g: Number(rf.fat_g || 0) })}>
                   {rf.food_name}
                 </Button>
@@ -528,10 +532,10 @@ export default function NutritionPage() {
       {targets && (
       <Card className="mobile-card">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-white"><SettingsIcon className="w-4 h-4 text-gold" /> Daily targets</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg text-white"><SettingsIcon className="w-4 h-4 text-gold" /> Daily targets</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid mobile-grid-4 gap-2 sm:gap-3">
             <div>
               <p className="text-xs text-white/60">Calories</p>
               <Input type="number" value={targets.calories} onChange={(e) => saveTargets({ ...targets, calories: Number(e.target.value) })} className="mobile-input" />
@@ -555,12 +559,12 @@ export default function NutritionPage() {
 
       {/* Barcode Scanner Modal Placeholder */}
       {showBarcodeScanner && (
-        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
           <Card className="w-full max-w-md mobile-card">
             <CardHeader>
-              <CardTitle className="text-white">Barcode Scanner</CardTitle>
+              <CardTitle className="text-base sm:text-lg text-white">Barcode Scanner</CardTitle>
             </CardHeader>
-            <CardContent className="text-center space-y-4">
+            <CardContent className="text-center space-y-3 sm:space-y-4">
               <div className="w-full">
                 <BarcodeScanner
                   onDetected={async (code: string) => {
@@ -584,12 +588,12 @@ export default function NutritionPage() {
                     }
                   }}
                 />
-                <p className="text-white/60 text-sm mt-2">Point camera at barcode. Some browsers require HTTPS or localhost for camera access.</p>
+                <p className="text-white/60 text-xs sm:text-sm mt-2">Point camera at barcode. Some browsers require HTTPS or localhost for camera access.</p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-1 sm:gap-2">
                 <Button 
                   variant="outline"
-                  className="flex-1 border-white/30 text-white hover:bg-white/10"
+                  className="flex-1 border-white/30 text-white hover:bg-white/10 text-sm"
                   onClick={() => setShowBarcodeScanner(false)}
                 >
                   Cancel

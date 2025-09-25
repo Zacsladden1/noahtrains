@@ -177,13 +177,13 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="mobile-padding space-y-6 bg-black min-h-screen">
+    <div className="mobile-padding mobile-spacing bg-black min-h-screen">
       {/* Header */}
-      <div className="space-y-2">
-        <h1 className="text-2xl md:text-3xl font-heading text-white">
+      <div className="space-y-1 sm:space-y-2">
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-heading text-white">
           Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}, {profile?.full_name?.split(' ')[0]}
         </h1>
-        <p className="text-white/70 text-sm md:text-base">
+        <p className="text-white/70 text-xs sm:text-sm md:text-base">
           {new Date().toLocaleDateString('en-US', { 
             weekday: 'long', 
             year: 'numeric', 
@@ -204,7 +204,7 @@ export default function DashboardPage() {
       />
 
       {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
         {/* Today's Workout */}
         <div className="lg:col-span-2">
           <TodaysWorkout workout={todaysWorkout || undefined} />
@@ -226,17 +226,17 @@ export default function DashboardPage() {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
         {/* Quick Water Add */}
         <Card className="mobile-card">
           <CardHeader>
-            <CardTitle className="text-lg text-white">Quick Add Water</CardTitle>
+            <CardTitle className="text-base sm:text-lg text-white">Quick Add Water</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex gap-2">
+          <CardContent className="space-y-2 sm:space-y-3">
+            <div className="flex gap-1 sm:gap-2">
               <Button 
                 variant="outline"
-                className="flex-1 border-white/30 text-white hover:bg-white/10"
+                className="flex-1 border-white/30 text-white hover:bg-white/10 text-xs sm:text-sm"
                 size="sm" 
                 onClick={() => quickAddWater(250)}
               >
@@ -244,7 +244,7 @@ export default function DashboardPage() {
               </Button>
               <Button 
                 variant="outline"
-                className="flex-1 border-white/30 text-white hover:bg-white/10"
+                className="flex-1 border-white/30 text-white hover:bg-white/10 text-xs sm:text-sm"
                 size="sm" 
                 onClick={() => quickAddWater(500)}
               >
@@ -252,7 +252,7 @@ export default function DashboardPage() {
               </Button>
               <Button 
                 variant="outline"
-                className="flex-1 border-white/30 text-white hover:bg-white/10"
+                className="flex-1 border-white/30 text-white hover:bg-white/10 text-xs sm:text-sm"
                 size="sm" 
                 onClick={() => quickAddWater(750)}
               >
@@ -265,13 +265,13 @@ export default function DashboardPage() {
         {/* Recent Messages */}
         <Card className="mobile-card">
           <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2 text-white">
+            <CardTitle className="text-base sm:text-lg flex items-center gap-2 text-white">
               <MessageCircle className="w-5 h-5 text-gold" />
               Messages
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-white/60 mb-3">
+            <p className="text-xs sm:text-sm text-white/60 mb-2 sm:mb-3">
               {isAdmin ? 'Check in with your clients' : 'Connect with your coach'}
             </p>
             <Button variant="outline" size="sm" className="w-full border-white/30 text-white hover:bg-white/10">
@@ -284,13 +284,13 @@ export default function DashboardPage() {
         {/* Notifications */}
         <Card className="mobile-card">
           <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2 text-white">
+            <CardTitle className="text-base sm:text-lg flex items-center gap-2 text-white">
               <Bell className="w-5 h-5 text-gold" />
               Notifications
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-white/60 mb-3">
+            <p className="text-xs sm:text-sm text-white/60 mb-2 sm:mb-3">
               No new notifications
             </p>
             <Button variant="outline" size="sm" className="w-full border-white/30 text-white hover:bg-white/10">
