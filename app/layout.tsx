@@ -1,6 +1,9 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import { Cinzel, Cormorant_Garamond } from 'next/font/google';
+import dynamic from 'next/dynamic';
+
+const ChunkErrorReload = dynamic(() => import('@/components/system/chunk-error-reload'), { ssr: false });
 
 const cinzel = Cinzel({
   subsets: ['latin'],
@@ -28,10 +31,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`dark ${cinzel.variable} ${cormorant.variable}`}>
+      <head>
+        <link
+          rel="icon"
+          href={`data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>🏋️</text></svg>`}
+        />
+      </head>
       <body className="min-h-screen bg-background text-foreground">
         {children}
-        {/* Auto-reload if a Next chunk fails to load (Netlify edge caching) */}
-        {typeof window !== 'undefined' && require('@/components/system/chunk-error-reload').default({})}
+        <ChunkErrorReload />
       </body>
     </html>
   );
