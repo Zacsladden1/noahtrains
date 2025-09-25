@@ -168,6 +168,56 @@ export default function LibraryPage() {
             </Card>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
+              {/* Featured local video */}
+              <Card className="mobile-card hover:border-gold/50 transition-colors">
+                <CardHeader className="p-0">
+                  <div className="relative aspect-video bg-white/10 rounded-t-xl sm:rounded-t-lg overflow-hidden">
+                    <video
+                      src="/HIGH%20TO%20LOW%20(DONE)%20(1).mov"
+                      className="w-full h-full object-cover"
+                      controls
+                      playsInline
+                    />
+                  </div>
+                </CardHeader>
+                <CardContent className="p-3 sm:p-4 space-y-2 sm:space-y-3">
+                  <div>
+                    <CardTitle className="text-sm sm:text-lg line-clamp-2 text-white">Cable Chest Flys</CardTitle>
+                  </div>
+                  <Button asChild className="w-full bg-gold hover:bg-gold/90 text-black text-sm">
+                    <a href="/HIGH%20TO%20LOW%20(DONE)%20(1).mov" target="_blank" rel="noopener noreferrer">
+                      <Play className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 text-black" />
+                      Watch Video
+                    </a>
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Featured local video 2 */}
+              <Card className="mobile-card hover:border-gold/50 transition-colors">
+                <CardHeader className="p-0">
+                  <div className="relative aspect-video bg-white/10 rounded-t-xl sm:rounded-t-lg overflow-hidden">
+                    <video
+                      src="/DSC_3507%20(1)%20(1).mp4"
+                      className="w-full h-full object-cover"
+                      controls
+                      playsInline
+                    />
+                  </div>
+                </CardHeader>
+                <CardContent className="p-3 sm:p-4 space-y-2 sm:space-y-3">
+                  <div>
+                    <CardTitle className="text-sm sm:text-lg line-clamp-2 text-white">Healthy Chicken and Pasta dinner</CardTitle>
+                  </div>
+                  <Button asChild className="w-full bg-gold hover:bg-gold/90 text-black text-sm">
+                    <a href="/DSC_3507%20(1)%20(1).mp4" target="_blank" rel="noopener noreferrer">
+                      <Play className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 text-black" />
+                      Watch Video
+                    </a>
+                  </Button>
+                </CardContent>
+              </Card>
+
               {filteredVideos.map((video) => (
                 <Card key={video.id} className="mobile-card hover:border-gold/50 transition-colors">
                   <CardHeader className="p-0">

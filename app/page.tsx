@@ -134,7 +134,7 @@ export default function HomePage() {
   const [mounted, setMounted] = useState(false);
   const [authStalled, setAuthStalled] = useState(false);
   const [showSetup, setShowSetup] = useState(() => !isSupabaseConfigured());
-  const [showDebug, setShowDebug] = useState(false);
+  // removed showDebug state
 
   useEffect(() => {
     setMounted(true);
@@ -185,6 +185,13 @@ export default function HomePage() {
   if (error && authStalled) {
     return (
       <>
+        <div className="w-full flex justify-center mt-10 mb-6">
+          <img
+            src="/no%20backround%20high%20quality%20logo%202.png"
+            alt="Noahhtrains"
+            className="h-14 w-auto drop-shadow-[0_0_20px_rgba(205,167,56,0.25)]"
+          />
+        </div>
         <AuthForm />
         <div className="fixed top-4 left-4 max-w-sm">
           <Alert className="bg-red-500/10 border-red-500/50">
@@ -200,30 +207,6 @@ export default function HomePage() {
             </AlertDescription>
           </Alert>
         </div>
-        {showDebug && (
-          <div className="fixed bottom-4 right-4 w-80 p-3 bg-white/5 border border-white/10 rounded-lg text-xs text-white">
-            <div className="flex items-center justify-between mb-2">
-              <strong>Debug</strong>
-              <button onClick={() => setShowDebug(false)} className="text-white/60 hover:text-white">✕</button>
-            </div>
-            <div className="space-y-1">
-              <div><strong>user:</strong> <span className="break-words">{JSON.stringify(user)}</span></div>
-              <div><strong>loading:</strong> {String(loading)}</div>
-              <div><strong>authStalled:</strong> {String(authStalled)}</div>
-              <div><strong>error:</strong> {error}</div>
-              <div><strong>NEXT_PUBLIC_SUPABASE_URL:</strong> {String(process.env.NEXT_PUBLIC_SUPABASE_URL)}</div>
-              <div><strong>NEXT_PUBLIC_SUPABASE_ANON_KEY:</strong> {String(Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY))}</div>
-            </div>
-          </div>
-        )}
-        {!showDebug && (
-          <button
-            onClick={() => setShowDebug(true)}
-            className="fixed bottom-4 right-4 bg-gold text-black px-3 py-2 rounded-md text-sm"
-          >
-            Show Debug
-          </button>
-        )}
       </>
     );
   }
@@ -235,30 +218,6 @@ export default function HomePage() {
   return (
     <>
       <AuthForm />
-      {showDebug && (
-        <div className="fixed bottom-4 right-4 w-80 p-3 bg-white/5 border border-white/10 rounded-lg text-xs text-white">
-          <div className="flex items-center justify-between mb-2">
-            <strong>Debug</strong>
-            <button onClick={() => setShowDebug(false)} className="text-white/60 hover:text-white">✕</button>
-          </div>
-          <div className="space-y-1">
-            <div><strong>user:</strong> <span className="break-words">{JSON.stringify(user)}</span></div>
-            <div><strong>loading:</strong> {String(loading)}</div>
-            <div><strong>authStalled:</strong> {String(authStalled)}</div>
-            <div><strong>error:</strong> {error}</div>
-            <div><strong>NEXT_PUBLIC_SUPABASE_URL:</strong> {String(process.env.NEXT_PUBLIC_SUPABASE_URL)}</div>
-            <div><strong>NEXT_PUBLIC_SUPABASE_ANON_KEY:</strong> {String(Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY))}</div>
-          </div>
-        </div>
-      )}
-      {!showDebug && (
-        <button
-          onClick={() => setShowDebug(true)}
-          className="fixed bottom-4 right-4 bg-gold text-black px-3 py-2 rounded-md text-sm"
-        >
-          Show Debug
-        </button>
-      )}
     </>
   );
 }
