@@ -1,44 +1,27 @@
-self.addEventListener('install', (event) => {
-  self.skipWaiting();
-});
-
-self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
-});
-
 self.addEventListener('push', (event) => {
   let data = {};
   try {
-    if (event.data) data = event.data.json();
-  } catch {}
-
-  const title = data.title || 'Notification';
-  const body = data.body || '';
-  const url = data.url || '/';
-  const icon = data.icon || '/no%20backround%20high%20quality%20logo%202.png';
-
-  event.waitUntil(
-    self.registration.showNotification(title, {
-      body,
-      icon,
-      badge: icon,
-      data: { url },
-    })
-  );
+    data = event.data ? event.data.json() : {};
+  } catch (e) {}
+  const title = data.title || 'Noahhtrains';
+  const options = {
+    body: data.body || 'You have a new notification',
+    icon: '/no%20backround%20high%20quality%20logo%202.png',
+    badge: '/favicon.svg',
+    data: { url: data.url || '/dashboard' },
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
 });
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const url = event.notification?.data?.url || '/';
+  const target = (event.notification && event.notification.data && event.notification.data.url) || '/dashboard';
   event.waitUntil(
-    self.clients.matchAll({ type: 'window' }).then((clientsArr) => {
-      for (const client of clientsArr) {
-        if ('focus' in client) {
-          client.navigate(url);
-          return client.focus();
-        }
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if ('focus' in client) return client.focus();
       }
-      if (self.clients.openWindow) return self.clients.openWindow(url);
+      if (clients.openWindow) return clients.openWindow(target);
     })
   );
 });

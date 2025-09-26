@@ -253,6 +253,44 @@ export default function NutritionPage() {
     return getMealLogs(mealType).reduce((acc, log) => acc + (log.calories || 0), 0);
   };
 
+  const testPush = async () => {
+    try {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        alert('Push not supported in this browser');
+        return;
+      }
+      const perm = await Notification.requestPermission();
+      if (perm !== 'granted') {
+        alert('Notifications not granted');
+        return;
+      }
+      const reg = await navigator.serviceWorker.register('/sw.js');
+      const response = await fetch('/api/push/vapid');
+      const { publicKey } = await response.json();
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: (() => {
+          const base64 = publicKey;
+          const padding = '='.repeat((4 - (base64.length % 4)) % 4);
+          const b64 = (base64 + padding).replace(/-/g, '+').replace(/_/g, '/');
+          const raw = atob(b64);
+          const arr = new Uint8Array(raw.length);
+          for (let i = 0; i < raw.length; ++i) arr[i] = raw.charCodeAt(i);
+          return arr;
+        })()
+      });
+      await fetch('/api/push/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscription: sub })
+      });
+      alert('Test push sent (if supported on device).');
+    } catch (e) {
+      console.error(e);
+      alert('Failed to send test push');
+    }
+  };
+
   return (
     <div className="mobile-padding mobile-spacing bg-black min-h-screen">
       {/* Header */}
@@ -275,36 +313,6 @@ export default function NutritionPage() {
           >
             <Scan className="w-4 h-4 sm:mr-2 text-gold" />
             <span className="hidden sm:inline">Scan</span>
-          </Button>
-          <Button
-            variant="outline"
-            className="border-white/30 text-white hover:bg-white/10 text-xs sm:text-sm"
-            onClick={async () => {
-              try {
-                const reg = await navigator.serviceWorker.ready;
-                const sub = await reg.pushManager.subscribe({
-                  userVisibleOnly: true,
-                  applicationServerKey: (window as any).VAPID_PUBLIC_KEY || undefined,
-                });
-                const uid = (window as any).supabaseAuthUserId || null;
-                await fetch('/api/push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: uid, subscription: sub }) });
-                alert('Push enabled');
-              } catch (e) { console.error(e); alert('Failed to enable push'); }
-            }}
-          >
-            Enable Push
-          </Button>
-          <Button
-            className="bg-gold hover:bg-gold/90 text-black text-xs sm:text-sm"
-            onClick={async () => {
-              try {
-                const uid = (window as any).supabaseAuthUserId || null;
-                await fetch('/api/push/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: uid }) });
-                alert('Test notification sent');
-              } catch (e) { console.error(e); }
-            }}
-          >
-            Send Test
           </Button>
         </div>
       </div>
@@ -625,6 +633,13 @@ export default function NutritionPage() {
                 />
               </div>
               <div className="flex gap-1 sm:gap-2">
+                <Button 
+                  variant="outline"
+                  className="flex-1 border-white/30 text-white hover:bg-white/10 text-sm"
+                  onClick={testPush}
+                >
+                  Send Test Push
+                </Button>
                 <Button 
                   variant="outline"
                   className="flex-1 border-white/30 text-white hover:bg-white/10 text-sm"
