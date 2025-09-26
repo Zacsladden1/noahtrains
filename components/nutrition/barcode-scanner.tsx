@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { BarcodeScanner as ReactBarcodeScanner } from 'react-barcode-scanner';
 import { BrowserMultiFormatReader } from '@zxing/library';
+import { Camera, CameraOff, RefreshCcw } from 'lucide-react';
 
 type Props = {
   onDetected: (code: string) => void;
@@ -19,6 +20,7 @@ export function BarcodeScanner({ onDetected, onManualEntry }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const [facing, setFacing] = useState<'environment' | 'user'>('environment');
   const rafRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -48,7 +50,7 @@ export function BarcodeScanner({ onDetected, onManualEntry }: Props) {
         // Request higher quality on iOS
         const constraints: MediaStreamConstraints = {
           video: {
-            facingMode: { ideal: 'environment' },
+            facingMode: { ideal: facing },
             width: { ideal: 1920 },
             height: { ideal: 1080 },
             frameRate: { ideal: 30, max: 60 },
@@ -97,7 +99,7 @@ export function BarcodeScanner({ onDetected, onManualEntry }: Props) {
         streamRef.current = null;
       }
     };
-  }, [isIOS, useTorch, showConfirmation, pendingScan, handleScan, handleError]);
+  }, [isIOS, useTorch, facing, showConfirmation, pendingScan, handleScan, handleError]);
 
   const handleConfirmScan = useCallback(() => {
     if (pendingScan) {
@@ -158,6 +160,13 @@ export function BarcodeScanner({ onDetected, onManualEntry }: Props) {
               {useTorch ? 'Torch Off' : 'Torch On'}
             </button>
           )}
+          <button
+            type="button"
+            onClick={() => setFacing(prev => prev === 'environment' ? 'user' : 'environment')}
+            className="absolute top-3 left-3 z-10 rounded-md bg-black/60 text-white text-xs px-2 py-1 border border-white/20 hover:bg-black/80"
+          >
+            Flip
+          </button>
         </div>
       )}
 

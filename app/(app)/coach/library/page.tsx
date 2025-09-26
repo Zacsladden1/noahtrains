@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Play, Trash2, Pencil, Save, X } from 'lucide-react';
@@ -92,6 +93,7 @@ export default function CoachLibraryManager() {
         is_public: true,
         file_type: docFile.type,
         file_size: docFile.size,
+        section: 'documents',
       });
       setDocFile(null); setDocTitle(''); setDocCategory(''); setDocTags('');
       alert('Document uploaded');
@@ -139,8 +141,14 @@ export default function CoachLibraryManager() {
             <CardTitle className="text-white text-base">Add Video</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Input type="file" accept="video/*" onChange={(e)=>setVideoFile(e.target.files?.[0] || null)} className="mobile-input" />
-            <Input type="file" accept="image/*" onChange={(e)=>setThumbFile(e.target.files?.[0] || null)} className="mobile-input" />
+            <div>
+              <Label className="text-white/80 text-sm">Video file</Label>
+              <Input type="file" accept="video/*" onChange={(e)=>setVideoFile(e.target.files?.[0] || null)} className="mobile-input mt-1" />
+            </div>
+            <div>
+              <Label className="text-white/80 text-sm">Thumbnail (optional)</Label>
+              <Input type="file" accept="image/*" onChange={(e)=>setThumbFile(e.target.files?.[0] || null)} className="mobile-input mt-1" />
+            </div>
             <Input placeholder="Title" value={videoTitle} onChange={(e)=>setVideoTitle(e.target.value)} className="mobile-input" />
             <Input placeholder="Category" value={videoCategory} onChange={(e)=>setVideoCategory(e.target.value)} className="mobile-input" />
             <Input placeholder="Tags (comma separated)" value={videoTags} onChange={(e)=>setVideoTags(e.target.value)} className="mobile-input" />

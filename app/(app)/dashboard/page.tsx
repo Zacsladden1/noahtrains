@@ -324,27 +324,57 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Recent Messages */}
-        <Card className="mobile-card">
-          <CardHeader>
-            <CardTitle className="text-base sm:text-lg flex items-center gap-2 text-white">
-              <MessageCircle className="w-5 h-5 text-gold" />
-              Messages
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs sm:text-sm text-white/60 mb-2 sm:mb-3">
-              {isAdmin ? 'Check in with your clients' : 'Connect with your coach'}
-            </p>
-            <a href="/messages" className="block">
-              <Button variant="outline" size="sm" className="w-full border-white/30 text-white hover:bg-white/10">
-                <Plus className="w-4 h-4 mr-2 text-gold" />
-                Open Messages
-              </Button>
-            </a>
-          </CardContent>
-        </Card>
+        {/* Recent Messages - only if there is at least one thread with a coach */}
+        <ClientMessagesCTA />
       </div>
     </div>
+  );
+}
+
+function ClientMessagesCTA() {
+  const { profile } = useAuth();
+  const [hasThread, setHasThread] = useState<boolean>(false);
+  useEffect(() => {
+    (async () => {
+      try {
+        if (!profile?.id) return;
+        const { data: rel } = await supabase
+          .from('clients')
+          .select('coach_id')
+          .eq('client_id', profile.id)
+          .maybeSingle();
+        if (!rel?.coach_id) { setHasThread(false); return; }
+        const { data: th } = await supabase
+          .from('message_threads')
+          .select('id')
+          .eq('client_id', profile.id)
+          .eq('coach_id', rel.coach_id)
+          .limit(1);
+        setHasThread(!!(th && th.length > 0));
+      } catch {
+        setHasThread(false);
+      }
+    })();
+  }, [profile?.id]);
+
+  if (!hasThread) return null;
+
+  return (
+    <Card className="mobile-card">
+      <CardHeader>
+        <CardTitle className="text-base sm:text-lg flex items-center gap-2 text-white">
+          <MessageCircle className="w-5 h-5 text-gold" />
+          Messages
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <a href="/messages" className="block">
+          <Button variant="outline" size="sm" className="w-full border-white/30 text-white hover:bg-white/10">
+            <Plus className="w-4 h-4 mr-2 text-gold" />
+            Open Messages
+          </Button>
+        </a>
+      </CardContent>
+    </Card>
   );
 }

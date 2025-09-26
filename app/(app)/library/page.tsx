@@ -168,7 +168,7 @@ export default function LibraryPage() {
         </TabsList>
 
         <TabsContent value="form" className="mobile-spacing">
-          {filteredVideos.filter(v=> (v as any).section === 'form').length === 0 ? (
+          {filteredVideos.filter(v=> !(v as any).section || (v as any).section === 'form').length === 0 ? (
             <Card className="mobile-card">
               <CardContent className="text-center py-12">
                 <VideoIcon className="w-8 h-8 sm:w-12 sm:h-12 text-gold mx-auto mb-4 opacity-50" />
@@ -183,7 +183,7 @@ export default function LibraryPage() {
             </Card>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
-              {filteredVideos.filter(v=> (v as any).section === 'form').map((video) => {
+              {filteredVideos.filter(v=> !(v as any).section || (v as any).section === 'form').map((video) => {
                 const publicUrl = getPublicUrl(video.storage_path);
                 const thumbUrl = getPublicUrl((video as any).thumbnail_path as any);
                 return (
@@ -242,7 +242,7 @@ export default function LibraryPage() {
         </TabsContent>
 
         <TabsContent value="cooking" className="mobile-spacing">
-          {filteredVideos.filter(v=> (v as any).section === 'cooking').length === 0 ? (
+          {filteredVideos.filter(v=> (v as any).section === 'cooking' || (!(v as any).section && (v as any).category === 'Cooking')).length === 0 ? (
             <Card className="mobile-card">
               <CardContent className="text-center py-12">
                 <VideoIcon className="w-8 h-8 sm:w-12 sm:h-12 text-gold mx-auto mb-4 opacity-50" />
@@ -257,7 +257,7 @@ export default function LibraryPage() {
             </Card>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
-              {filteredVideos.filter(v=> (v as any).section === 'cooking').map((video) => {
+              {filteredVideos.filter(v=> (v as any).section === 'cooking' || (!(v as any).section && (v as any).category === 'Cooking')).map((video) => {
                 const publicUrl = getPublicUrl(video.storage_path);
                 const thumbUrl = getPublicUrl((video as any).thumbnail_path as any);
                 return (
@@ -311,7 +311,7 @@ export default function LibraryPage() {
         </TabsContent>
 
         <TabsContent value="documents" className="mobile-spacing">
-          {filteredDocuments.filter(d=> (d as any).section === 'documents').length === 0 ? (
+          {filteredDocuments.filter(d=> !(d as any).section || (d as any).section === 'documents').length === 0 ? (
             <Card className="mobile-card">
               <CardContent className="text-center py-12">
                 <BookOpen className="w-8 h-8 sm:w-12 sm:h-12 text-gold mx-auto mb-4 opacity-50" />
@@ -326,7 +326,7 @@ export default function LibraryPage() {
             </Card>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
-              {filteredDocuments.filter(d=> (d as any).section === 'documents').map((document) => (
+              {filteredDocuments.filter(d=> !(d as any).section || (d as any).section === 'documents').map((document) => (
                 <Card key={document.id} className="mobile-card hover:border-gold/50 transition-colors">
                   <CardContent className="p-4 sm:p-6 space-y-3 sm:space-y-4">
                     <div className="flex items-start space-x-2 sm:space-x-3">
@@ -364,20 +364,24 @@ export default function LibraryPage() {
                     </div>
                     
                     <div className="flex gap-1 sm:gap-2">
+                      {(() => { const url = getPublicUrl(document.storage_path); const fileName = (()=>{ try{ const p = (document.storage_path as any) as string; const parts = p?.split('/') || []; return parts[parts.length-1] || 'document'; } catch { return 'document'; } })(); return (
+                      <>
                       <Button asChild variant="outline" size="sm" className="flex-1 border-white/30 text-white hover:bg-white/10 text-xs sm:text-sm">
-                        <a href={getPublicUrl(document.storage_path)} target="_blank" rel="noopener noreferrer">
+                        <a href={url} target="_blank" rel="noopener noreferrer">
                           <ExternalLink className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 text-gold" />
                           <span className="hidden sm:inline">View</span>
                           <span className="sm:hidden">View</span>
                         </a>
                       </Button>
                       <Button asChild variant="outline" size="sm" className="flex-1 border-white/30 text-white hover:bg-white/10 text-xs sm:text-sm">
-                        <a href={getPublicUrl(document.storage_path)} download>
+                        <a href={`${url}?download=${encodeURIComponent(fileName)}`} download={fileName}>
                           <Download className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 text-gold" />
                           <span className="hidden sm:inline">Download</span>
                           <span className="sm:hidden">DL</span>
                         </a>
                       </Button>
+                      </>
+                      )})()}
                     </div>
                   </CardContent>
                 </Card>

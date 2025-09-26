@@ -5,7 +5,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Scan } from 'lucide-react';
+import { Scan, X } from 'lucide-react';
+import { BarcodeScanner } from '@/components/nutrition/barcode-scanner';
 
 type FoodPayload = {
   meal: string;
@@ -46,6 +47,7 @@ export function FoodLogDialog({
     sugar_g: 0,
     sodium_mg: 0,
   });
+  const [showScanner, setShowScanner] = useState(false);
 
   const update = (key: keyof FoodPayload, value: any) => {
     setForm((f) => ({ ...f, [key]: value }));
@@ -57,15 +59,16 @@ export function FoodLogDialog({
     setForm({ ...form, food_name: '', brand: '', calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0, fiber_g: 0, sugar_g: 0, sodium_mg: 0 });
   };
 
-  const lookupBarcode = async () => {
-    const code = prompt('Enter barcode');
-    if (!code) return;
+  const onBarcodeDetected = async (code: string) => {
     try {
-      // Prefer OpenFoodFacts for UK coverage
       const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json`);
       const data = await res.json();
       const p = data.product;
-      if (!p) return alert('No product found');
+      if (!p) {
+        alert('No product found');
+        setShowScanner(false);
+        return;
+      }
       const nutr = p.nutriments || {};
       setForm((f) => ({
         ...f,
@@ -80,9 +83,11 @@ export function FoodLogDialog({
         sugar_g: Number(nutr.sugars_100g) || f.sugar_g,
         sodium_mg: Math.round((Number(nutr.sodium_100g) || 0) * 1000),
       }));
+      setShowScanner(false);
     } catch (e) {
       console.error('Barcode lookup failed', e);
       alert('Barcode lookup failed');
+      setShowScanner(false);
     }
   };
 
@@ -93,7 +98,7 @@ export function FoodLogDialog({
         <div className="min-h-full flex flex-col">
           <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between sm:hidden">
             <DialogTitle className="text-base">Add Food</DialogTitle>
-            <Button type="button" size="sm" variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={lookupBarcode}>
+            <Button type="button" size="sm" variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={()=>setShowScanner(true)}>
               <Scan className="w-4 h-4 mr-2" /> Scan
             </Button>
           </div>
@@ -104,12 +109,18 @@ export function FoodLogDialog({
           </div>
 
           <div className="px-4 sm:px-0 pb-24">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 sm:pt-0">
-              <div className="md:col-span-2 hidden sm:flex justify-end">
-                <Button type="button" variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={lookupBarcode}>
-                  <Scan className="w-4 h-4 mr-2" /> Lookup barcode
-                </Button>
+            {showScanner && (
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-white/80 text-sm">Scan a barcode</p>
+                  <Button type="button" size="sm" variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={()=>setShowScanner(false)}>
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+                <BarcodeScanner onDetected={onBarcodeDetected} onManualEntry={()=>setShowScanner(false)} />
               </div>
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 sm:pt-0">
               <div>
                 <Label htmlFor="food" className="text-white/80 text-sm">Food name</Label>
                 <Input id="food" value={form.food_name} onChange={(e) => update('food_name', e.target.value)} className="mobile-input mt-1 h-12 text-base" placeholder="e.g., Chicken breast" />
