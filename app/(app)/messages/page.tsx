@@ -89,6 +89,7 @@ export default function MessagesPage() {
 
       setThreadId(currentThreadId);
       await fetchMessages(currentThreadId);
+      try { await supabase.from('message_threads').update({ last_viewed_by_client_at: new Date().toISOString() }).eq('id', currentThreadId); } catch {}
 
       // 3) Realtime listener for new messages in this thread
       supabase
@@ -145,8 +146,7 @@ export default function MessagesPage() {
         .from('messages')
         .insert({ thread_id: threadId, sender_id: profile.id, body });
       if (error) throw error;
-      // bump thread activity so coach inbox shows it
-      await supabase.from('message_threads').update({ last_message_at: new Date().toISOString() }).eq('id', threadId);
+      await supabase.from('message_threads').update({ last_message_at: new Date().toISOString(), last_viewed_by_client_at: new Date().toISOString() }).eq('id', threadId);
       setNewMessage('');
       await fetchMessages(threadId);
     } catch (e) {

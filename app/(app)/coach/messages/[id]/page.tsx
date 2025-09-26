@@ -75,6 +75,13 @@ export default function CoachThreadPage() {
     })();
   }, [profile?.id]);
 
+  useEffect(() => {
+    if (!threadId) return;
+    (async () => {
+      try { await supabase.from('message_threads').update({ last_viewed_by_coach_at: new Date().toISOString() }).eq('id', threadId); } catch {}
+    })();
+  }, [threadId]);
+
   const send = async () => {
     if (!text.trim() || !profile?.id) return;
     await supabase.from('messages').insert({
@@ -90,6 +97,8 @@ export default function CoachThreadPage() {
       .order('created_at', { ascending: true });
     setMessages(msgs || []);
     await supabase.from('message_threads').update({ last_message_at: new Date().toISOString() }).eq('id', threadId);
+    // mark viewed after sending
+    try { await supabase.from('message_threads').update({ last_viewed_by_coach_at: new Date().toISOString() }).eq('id', threadId); } catch {}
     // trigger push to client
     await fetch('/api/push/message', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ threadId }) });
   };

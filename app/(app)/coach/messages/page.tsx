@@ -12,6 +12,7 @@ type Thread = {
   client_id: string;
   coach_id: string;
   last_message_at: string | null;
+  last_viewed_by_coach_at: string | null;
   created_at: string;
 };
 
@@ -26,7 +27,7 @@ export default function CoachMessagesPage() {
     (async () => {
       const { data: th } = await supabase
         .from('message_threads')
-        .select('id, client_id, coach_id, last_message_at, created_at')
+        .select('id, client_id, coach_id, last_message_at, last_viewed_by_coach_at, created_at')
         .eq('coach_id', profile.id)
         .order('last_message_at', { ascending: false, nullsFirst: false });
       const list = (th || []) as Thread[];
@@ -50,6 +51,12 @@ export default function CoachMessagesPage() {
     return name.includes(q.toLowerCase());
   });
 
+  const isUnread = (t: Thread) => {
+    if (!t.last_message_at) return false;
+    if (!t.last_viewed_by_coach_at) return true;
+    return new Date(t.last_message_at).getTime() > new Date(t.last_viewed_by_coach_at).getTime();
+  };
+
   return (
     <div className="mobile-padding mobile-spacing bg-black min-h-screen">
       <h1 className="text-xl sm:text-2xl md:text-3xl font-heading text-white mb-3">Messages</h1>
@@ -60,8 +67,12 @@ export default function CoachMessagesPage() {
           const c = clients[t.client_id];
           const title = c?.full_name || c?.email || 'Client';
           const when = t.last_message_at ? new Date(t.last_message_at).toLocaleString() : new Date(t.created_at).toLocaleString();
+          const unread = isUnread(t);
           return (
-            <Card key={t.id} className="mobile-card">
+            <Card key={t.id} className="mobile-card relative">
+              {unread && (
+                <div className="absolute top-2 right-2 w-5 h-5 bg-red-600 rounded-full flex items-center justify-center text-white text-[10px] font-bold">1</div>
+              )}
               <CardHeader>
                 <CardTitle className="text-white text-base">{title}</CardTitle>
               </CardHeader>
