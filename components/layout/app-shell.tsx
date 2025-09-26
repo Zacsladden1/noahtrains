@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -27,6 +27,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { supabase } from '@/lib/supabase';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -67,6 +68,40 @@ export function AppShell({ children }: AppShellProps) {
     ? adminNavItems
     : clientNavItems;
 
+  // Unread count for client messages
+  const [unreadCount, setUnreadCount] = useState(0);
+  useEffect(() => {
+    const load = async () => {
+      if (profile?.role !== 'client') return;
+      const { data } = await supabase
+        .from('message_threads')
+        .select('id, last_message_at, last_viewed_by_client_at')
+        .eq('client_id', profile.id);
+      const count = (data || []).filter((t: any) => t.last_message_at && (!t.last_viewed_by_client_at || new Date(t.last_message_at).getTime() > new Date(t.last_viewed_by_client_at).getTime())).length;
+      setUnreadCount(count);
+    };
+    load();
+    // Realtime refetch on new messages or thread updates
+    const channel = supabase
+      .channel('msg-unread-client')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => load())
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'message_threads' }, () => load())
+      .subscribe();
+    return () => { try { supabase.removeChannel(channel); } catch {} };
+  }, [profile?.id, profile?.role]);
+
+  const renderLabelWithBadge = (item: any) => {
+    const showBadge = item.href === '/messages' && unreadCount > 0 && profile?.role === 'client';
+    return (
+      <div className="relative inline-flex items-center">
+        <span>{item.label}</span>
+        {showBadge && (
+          <span className="ml-2 inline-flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full bg-red-600 text-[10px] font-bold text-white">{Math.min(unreadCount, 9)}</span>
+        )}
+      </div>
+    );
+  };
+
   const handleSignOut = async () => {
     await signOut();
   };
@@ -98,7 +133,7 @@ export function AppShell({ children }: AppShellProps) {
                   )}
                 >
                   <Icon className="w-4 h-4 xl:w-5 xl:h-5 mr-2 xl:mr-3" />
-                  {item.label}
+                  {renderLabelWithBadge(item)}
                 </div>
               </Link>
             );
@@ -166,7 +201,7 @@ export function AppShell({ children }: AppShellProps) {
                       )}
                     >
                       <Icon className="w-5 h-5 mr-4" />
-                      {item.label}
+                      {renderLabelWithBadge(item)}
                     </div>
                   </Link>
                 );
@@ -183,7 +218,7 @@ export function AppShell({ children }: AppShellProps) {
           <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)}>
             <Menu className="w-5 h-5 text-white" />
           </Button>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 relative">
             <img src="/no%20backround%20high%20quality%20logo%202.png" alt="Logo" className="h-5 w-auto" />
             <h1 className="text-base sm:text-lg font-heading text-white">Noahhtrains</h1>
           </div>
@@ -225,16 +260,20 @@ export function AppShell({ children }: AppShellProps) {
             {navItems.slice(0, 5).map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
+              const showBadge = item.href === '/messages' && unreadCount > 0 && profile?.role === 'client';
               
               return (
                 <Link key={item.href} href={item.href} className="flex-1">
                   <div
                     className={cn(
-                      'flex flex-col items-center py-2 sm:py-3 px-1 transition-colors min-h-[60px] sm:min-h-[64px] justify-center',
+                      'relative flex flex-col items-center py-2 sm:py-3 px-1 transition-colors min-h-[60px] sm:min-h-[64px] justify-center',
                       isActive ? 'text-gold' : 'text-white/60'
                     )}
                   >
                     <Icon className="w-5 h-5 sm:w-6 sm:h-6 mb-1" />
+                    {showBadge && (
+                      <span className="absolute top-1 right-[20%] w-3 h-3 bg-red-600 rounded-full" />
+                    )}
                     <span className="text-xs font-medium leading-tight text-center">{item.label}</span>
                   </div>
                 </Link>
