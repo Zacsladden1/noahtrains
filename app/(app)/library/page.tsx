@@ -185,11 +185,14 @@ export default function LibraryPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
               {filteredVideos.filter(v=> (v as any).section === 'form').map((video) => {
                 const publicUrl = getPublicUrl(video.storage_path);
+                const thumbUrl = getPublicUrl((video as any).thumbnail_path as any);
                 return (
                 <Card key={video.id} className="mobile-card hover:border-gold/50 transition-colors">
                   <CardHeader className="p-0">
                     <div className="relative aspect-video bg-white/10 rounded-t-xl sm:rounded-t-lg overflow-hidden">
-                      {publicUrl ? (
+                      {thumbUrl ? (
+                        <img src={thumbUrl} alt="thumbnail" className="w-full h-full object-cover" />
+                      ) : publicUrl ? (
                         <video src={publicUrl} className="w-full h-full object-cover" controls playsInline preload="metadata" />
                       ) : (
                         <div className="w-full h-full bg-gradient-to-br from-gold/20 to-gold/5 flex items-center justify-center">
@@ -261,11 +264,14 @@ export default function LibraryPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
               {filteredVideos.filter(v=> (v as any).section === 'cooking').map((video) => {
                 const publicUrl = getPublicUrl(video.storage_path);
+                const thumbUrl = getPublicUrl((video as any).thumbnail_path as any);
                 return (
                 <Card key={video.id} className="mobile-card hover:border-gold/50 transition-colors">
                   <CardHeader className="p-0">
                     <div className="relative aspect-video bg-white/10 rounded-t-xl sm:rounded-t-lg overflow-hidden">
-                      {publicUrl ? (
+                      {thumbUrl ? (
+                        <img src={thumbUrl} alt="thumbnail" className="w-full h-full object-cover" />
+                      ) : publicUrl ? (
                         <video src={publicUrl} className="w-full h-full object-cover" controls playsInline preload="metadata" />
                       ) : (
                         <div className="w-full h-full bg-gradient-to-br from-gold/20 to-gold/5 flex items-center justify-center">
