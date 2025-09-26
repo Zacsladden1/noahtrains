@@ -45,7 +45,21 @@ export default function MessagesPage() {
         .eq('client_id', profile.id)
         .maybeSingle();
 
-      const coach_id = rel?.coach_id || null;
+      let coach_id = rel?.coach_id || null;
+
+      // Fallback: discover latest thread for this client if mapping missing
+      if (!coach_id) {
+        const { data: latestThread } = await supabase
+          .from('message_threads')
+          .select('id, coach_id')
+          .eq('client_id', profile.id)
+          .order('last_message_at', { ascending: false, nullsFirst: false })
+          .limit(1);
+        if (latestThread && latestThread.length > 0) {
+          coach_id = latestThread[0].coach_id;
+        }
+      }
+
       setCoachId(coach_id);
 
       // 2) Find or create thread between this client and coach
