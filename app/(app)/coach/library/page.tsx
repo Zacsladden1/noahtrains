@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Play, Trash2, Pencil, Save, X } from 'lucide-react';
 
 export default function CoachLibraryManager() {
   const [videoFile, setVideoFile] = useState<File | null>(null);
@@ -17,6 +19,23 @@ export default function CoachLibraryManager() {
   const [docCategory, setDocCategory] = useState('');
   const [docTags, setDocTags] = useState('');
   const [saving, setSaving] = useState(false);
+  const [videos, setVideos] = useState<any[]>([]);
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [editingVideoId, setEditingVideoId] = useState<string | null>(null);
+  const [editingDocId, setEditingDocId] = useState<string | null>(null);
+
+  useEffect(() => {
+    refreshLists();
+  }, []);
+
+  const refreshLists = async () => {
+    const [v, d] = await Promise.all([
+      supabase.from('videos').select('*').order('created_at', { ascending: false }),
+      supabase.from('documents').select('*').order('created_at', { ascending: false }),
+    ]);
+    setVideos(v.data || []);
+    setDocuments(d.data || []);
+  };
 
   const uploadToBucket = async (file: File): Promise<string> => {
     const path = `${Date.now()}_${file.name}`.replace(/\s+/g, '_');
@@ -40,6 +59,7 @@ export default function CoachLibraryManager() {
       });
       setVideoFile(null); setVideoTitle(''); setVideoCategory(''); setVideoTags('');
       alert('Video uploaded');
+      await refreshLists();
     } finally {
       setSaving(false);
     }
@@ -62,9 +82,38 @@ export default function CoachLibraryManager() {
       });
       setDocFile(null); setDocTitle(''); setDocCategory(''); setDocTags('');
       alert('Document uploaded');
+      await refreshLists();
     } finally {
       setSaving(false);
     }
+  };
+
+  const updateVideoMeta = async (v: any) => {
+    await supabase.from('videos').update({ title: v.title, description: v.description || null, category: v.category || null, tags: v.tags || null }).eq('id', v.id);
+    setEditingVideoId(null);
+    await refreshLists();
+  };
+
+  const deleteVideo = async (v: any) => {
+    if (!confirm('Delete this video?')) return;
+    try {
+      if (v.storage_path) { try { await supabase.storage.from('videos').remove([v.storage_path]); } catch {} }
+      await supabase.from('videos').delete().eq('id', v.id);
+    } finally { await refreshLists(); }
+  };
+
+  const updateDocMeta = async (d: any) => {
+    await supabase.from('documents').update({ title: d.title, description: d.description || null, category: d.category || null, tags: d.tags || null }).eq('id', d.id);
+    setEditingDocId(null);
+    await refreshLists();
+  };
+
+  const deleteDoc = async (d: any) => {
+    if (!confirm('Delete this document?')) return;
+    try {
+      if (d.storage_path) { try { await supabase.storage.from('videos').remove([d.storage_path]); } catch {} }
+      await supabase.from('documents').delete().eq('id', d.id);
+    } finally { await refreshLists(); }
   };
 
   return (
@@ -95,6 +144,73 @@ export default function CoachLibraryManager() {
             <Input placeholder="Category" value={docCategory} onChange={(e)=>setDocCategory(e.target.value)} className="mobile-input" />
             <Input placeholder="Tags (comma separated)" value={docTags} onChange={(e)=>setDocTags(e.target.value)} className="mobile-input" />
             <Button onClick={saveDocument} disabled={!docFile || !docTitle || saving} className="bg-gold hover:bg-gold/90 text-black">{saving ? 'Saving…' : 'Upload Document'}</Button>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Manage Existing */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6 mt-4">
+        <Card className="mobile-card">
+          <CardHeader><CardTitle className="text-white text-base">Videos</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            {videos.map((v) => (
+              <div key={v.id} className="p-3 border border-white/20 rounded text-white">
+                {editingVideoId === v.id ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <Input value={v.title || ''} onChange={(e)=>setVideos(prev=>prev.map(x=>x.id===v.id?{...x,title:e.target.value}:x))} className="mobile-input" />
+                    <Input placeholder="Category" value={v.category || ''} onChange={(e)=>setVideos(prev=>prev.map(x=>x.id===v.id?{...x,category:e.target.value}:x))} className="mobile-input" />
+                    <Input placeholder="Tags (comma)" value={(v.tags||[]).join(', ')} onChange={(e)=>setVideos(prev=>prev.map(x=>x.id===v.id?{...x,tags:e.target.value.split(',').map((t)=>t.trim())}:x))} className="mobile-input" />
+                    <div className="flex gap-2 justify-end col-span-1 sm:col-span-2">
+                      <Button size="sm" className="bg-gold text-black" onClick={()=>updateVideoMeta(v)}><Save className="w-4 h-4 mr-1" />Save</Button>
+                      <Button size="sm" variant="outline" className="border-white/30 text-white" onClick={()=>setEditingVideoId(null)}><X className="w-4 h-4 mr-1" />Cancel</Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <div className="min-w-0">
+                      <div className="font-medium truncate">{v.title}</div>
+                      <div className="text-xs text-white/60 truncate">{v.storage_path}</div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" className="border-white/30 text-white" onClick={()=>setEditingVideoId(v.id)}><Pencil className="w-4 h-4" /></Button>
+                      <Button size="sm" variant="outline" className="border-white/30 text-destructive" onClick={()=>deleteVideo(v)}><Trash2 className="w-4 h-4" /></Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card className="mobile-card">
+          <CardHeader><CardTitle className="text-white text-base">Documents</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            {documents.map((d) => (
+              <div key={d.id} className="p-3 border border-white/20 rounded text-white">
+                {editingDocId === d.id ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <Input value={d.title || ''} onChange={(e)=>setDocuments(prev=>prev.map(x=>x.id===d.id?{...x,title:e.target.value}:x))} className="mobile-input" />
+                    <Input placeholder="Category" value={d.category || ''} onChange={(e)=>setDocuments(prev=>prev.map(x=>x.id===d.id?{...x,category:e.target.value}:x))} className="mobile-input" />
+                    <Input placeholder="Tags (comma)" value={(d.tags||[]).join(', ')} onChange={(e)=>setDocuments(prev=>prev.map(x=>x.id===d.id?{...x,tags:e.target.value.split(',').map((t)=>t.trim())}:x))} className="mobile-input" />
+                    <div className="flex gap-2 justify-end col-span-1 sm:col-span-2">
+                      <Button size="sm" className="bg-gold text-black" onClick={()=>updateDocMeta(d)}><Save className="w-4 h-4 mr-1" />Save</Button>
+                      <Button size="sm" variant="outline" className="border-white/30 text-white" onClick={()=>setEditingDocId(null)}><X className="w-4 h-4 mr-1" />Cancel</Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <div className="min-w-0">
+                      <div className="font-medium truncate">{d.title}</div>
+                      <div className="text-xs text-white/60 truncate">{d.storage_path}</div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" className="border-white/30 text-white" onClick={()=>setEditingDocId(d.id)}><Pencil className="w-4 h-4" /></Button>
+                      <Button size="sm" variant="outline" className="border-white/30 text-destructive" onClick={()=>deleteDoc(d)}><Trash2 className="w-4 h-4" /></Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
           </CardContent>
         </Card>
       </div>

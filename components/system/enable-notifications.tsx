@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { useAuth } from '@/hooks/use-auth';
 
 export default function EnableNotificationsButton({ className }: { className?: string }) {
   const [loading, setLoading] = useState(false);
+  const { user } = useAuth();
 
   const enable = async () => {
     try {
@@ -27,7 +29,7 @@ export default function EnableNotificationsButton({ className }: { className?: s
           return arr;
         })()
       });
-      await fetch('/api/push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sub) });
+      await fetch('/api/push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...sub, userId: user?.id }) });
       alert('Notifications enabled');
     } catch (e) {
       console.error(e);
