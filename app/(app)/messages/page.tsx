@@ -6,8 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { 
   Send, 
   Paperclip, 
@@ -15,120 +14,120 @@ import {
   Phone, 
   Video,
   MoreVertical,
-  Image as ImageIcon,
-  File
+  Image as ImageIcon
 } from 'lucide-react';
-import { Message, Profile } from '@/types/supabase';
 
 export default function MessagesPage() {
-  const { profile, isAdmin } = useAuth();
-  const [messages, setMessages] = useState<(Message & { sender: Profile })[]>([]);
+  const { profile } = useAuth();
+  const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [threadId, setThreadId] = useState<string | null>(null);
+  const [coachId, setCoachId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (profile) {
-      initializeMessaging();
-    }
-  }, [profile]);
+    if (profile?.id) initializeMessaging();
+  }, [profile?.id]);
 
   const initializeMessaging = async () => {
-    if (!profile) return;
-
+    if (!profile?.id) return;
     try {
-      // For demo purposes, we'll create a simple messaging interface
-      // In a real app, this would handle multiple threads for admins
-      
-      if (isAdmin) {
-        // Admin sees all client conversations
-        // For now, we'll just show a placeholder
-        setLoading(false);
-        return;
-      }
-
-      // Client sees conversation with coach
-      // First, find or create a thread with the admin
-      const { data: adminProfile } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('role', 'admin')
-        .single();
-
-      if (!adminProfile) {
-        setLoading(false);
-        return;
-      }
-
-      // Find existing thread or create one
-      const { data: existingThread } = await supabase
-        .from('message_threads')
-        .select('id')
+      // 1) Find assigned coach from clients table
+      const { data: rel } = await supabase
+        .from('clients')
+        .select('coach_id')
         .eq('client_id', profile.id)
-        .eq('coach_id', adminProfile.id)
-        .single();
+        .maybeSingle();
 
-      let currentThreadId = existingThread?.id;
+      const coach_id = rel?.coach_id || null;
+      setCoachId(coach_id);
+
+      // 2) Find or create thread between this client and coach
+      let currentThreadId: string | null = null;
+      if (coach_id) {
+        const { data: existing } = await supabase
+          .from('message_threads')
+          .select('id')
+          .eq('client_id', profile.id)
+          .eq('coach_id', coach_id)
+          .maybeSingle();
+        currentThreadId = existing?.id || null;
+        if (!currentThreadId) {
+          const { data: created, error } = await supabase
+            .from('message_threads')
+            .insert({ client_id: profile.id, coach_id })
+            .select('id')
+            .single();
+          if (!error) currentThreadId = created.id;
+        }
+      }
 
       if (!currentThreadId) {
-        const { data: newThread } = await supabase
-          .from('message_threads')
-          .insert({
-            client_id: profile.id,
-            coach_id: adminProfile.id,
-          })
-          .select('id')
-          .single();
-        
-        currentThreadId = newThread?.id;
+        setLoading(false);
+        return;
       }
 
-      if (currentThreadId) {
-        setThreadId(currentThreadId);
-        await fetchMessages(currentThreadId);
-      }
-    } catch (error) {
-      console.error('Error initializing messaging:', error);
+      setThreadId(currentThreadId);
+      await fetchMessages(currentThreadId);
+
+      // 3) Realtime listener for new messages in this thread
+      supabase
+        .channel(`thread-${currentThreadId}`)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `thread_id=eq.${currentThreadId}` }, (payload) => {
+          setMessages((prev) => [...prev, payload.new]);
+        })
+        .subscribe();
+
+      // 4) Try to register push subscription for this client (optional)
+      try {
+        if ('serviceWorker' in navigator && 'PushManager' in window && Notification.permission === 'granted') {
+          const reg = await navigator.serviceWorker.register('/sw.js');
+          const sub = (await reg.pushManager.getSubscription()) || (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: (() => {
+            const base64 = (window as any).VAPID_PUBLIC_KEY || '';
+            if (!base64) return undefined as any;
+            const padding = '='.repeat((4 - (base64.length % 4)) % 4);
+            const b64 = (base64 + padding).replace(/-/g, '+').replace(/_/g, '/');
+            const raw = atob(b64);
+            const arr = new Uint8Array(raw.length);
+            for (let i = 0; i < raw.length; ++i) arr[i] = raw.charCodeAt(i);
+            return arr;
+          })() }));
+          if (sub) {
+            await fetch('/api/push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...sub, userId: profile.id }) });
+          }
+        }
+      } catch {}
+    } catch (e) {
+      console.error('Error initializing messaging:', e);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchMessages = async (threadId: string) => {
+  const fetchMessages = async (tid: string) => {
     try {
       const { data } = await supabase
         .from('messages')
-        .select(`
-          *,
-          sender:profiles(*)
-        `)
-        .eq('thread_id', threadId)
+        .select('*')
+        .eq('thread_id', tid)
         .order('created_at', { ascending: true });
-
       setMessages(data || []);
-    } catch (error) {
-      console.error('Error fetching messages:', error);
+    } catch (e) {
+      console.error('Error fetching messages:', e);
     }
   };
 
   const sendMessage = async () => {
-    if (!newMessage.trim() || !threadId || !profile) return;
-
+    if (!newMessage.trim() || !threadId || !profile?.id) return;
     try {
       const { error } = await supabase
         .from('messages')
-        .insert({
-          thread_id: threadId,
-          sender_id: profile.id,
-          body: newMessage.trim(),
-        });
-
+        .insert({ thread_id: threadId, sender_id: profile.id, body: newMessage.trim() });
       if (error) throw error;
-
       setNewMessage('');
       await fetchMessages(threadId);
-    } catch (error) {
-      console.error('Error sending message:', error);
+    } catch (e) {
+      console.error('Error sending message:', e);
     }
   };
 
@@ -150,26 +149,11 @@ export default function MessagesPage() {
     );
   }
 
-  if (isAdmin) {
+  if (!threadId) {
     return (
       <div className="mobile-padding space-y-6 bg-black min-h-screen">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-heading text-white">Messages</h1>
-          <p className="text-white/60">Communicate with your clients</p>
-        </div>
-
-        <Card className="mobile-card">
-          <CardContent className="text-center py-12">
-            <MessageCircle className="w-12 h-12 text-gold mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2 text-white">Client Conversations</h3>
-            <p className="text-white/60 mb-4">
-              Advanced messaging interface for managing multiple client conversations would appear here
-            </p>
-            <Button variant="outline" className="border-white/30 text-white hover:bg-white/10">
-              View All Conversations
-            </Button>
-          </CardContent>
-        </Card>
+        <h1 className="text-2xl md:text-3xl font-heading text-white">Messages</h1>
+        <p className="text-white/60">No coach assigned yet.</p>
       </div>
     );
   }
@@ -191,10 +175,10 @@ export default function MessagesPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2 sm:space-x-3">
               <Avatar className="w-8 h-8 sm:w-10 sm:h-10">
-                <AvatarFallback className="bg-gold text-black">NT</AvatarFallback>
+                <AvatarFallback className="bg-gold text-black">C</AvatarFallback>
               </Avatar>
               <div>
-                <CardTitle className="text-sm sm:text-lg text-white">Noah (Coach)</CardTitle>
+                <CardTitle className="text-sm sm:text-lg text-white">Coach</CardTitle>
                 <div className="flex items-center space-x-2">
                   <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-gold rounded-full"></div>
                   <span className="text-xs sm:text-sm text-white/60">Online</span>
@@ -235,16 +219,12 @@ export default function MessagesPage() {
                     <div className={`flex items-end space-x-1 sm:space-x-2 max-w-xs lg:max-w-md ${isOwn ? 'flex-row-reverse space-x-reverse' : ''}`}>
                       {!isOwn && (
                         <Avatar className="w-5 h-5 sm:w-6 sm:h-6">
-                          <AvatarFallback className="text-xs bg-gold text-black">
-                            {message.sender.full_name?.split(' ').map(n => n[0]).join('') || 'C'}
-                          </AvatarFallback>
+                          <AvatarFallback className="text-xs bg-gold text-black">C</AvatarFallback>
                         </Avatar>
                       )}
                       <div
                         className={`px-4 py-2 rounded-2xl ${
-                          isOwn
-                            ? 'bg-gold text-black'
-                            : 'bg-white/10 text-white'
+                          isOwn ? 'bg-gold text-black' : 'bg-white/10 text-white'
                         }`}
                       >
                         <p className="text-xs sm:text-sm">{message.body}</p>
@@ -277,7 +257,7 @@ export default function MessagesPage() {
                 placeholder="Type a message..."
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
-                onKeyPress={handleKeyPress}
+                onKeyDown={handleKeyPress}
                 className="mobile-input border-0 bg-white/10 text-white placeholder:text-white/50 focus-visible:ring-0 focus-visible:ring-offset-0"
               />
             </div>
@@ -291,35 +271,6 @@ export default function MessagesPage() {
           </div>
         </div>
       </Card>
-
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
-        <Card className="mobile-card">
-          <CardContent className="p-3 sm:p-4">
-            <h3 className="font-semibold mb-2 text-white text-sm sm:text-base">Share Progress Photos</h3>
-            <p className="text-xs sm:text-sm text-white/60 mb-2 sm:mb-3">
-              Show your coach your form or progress
-            </p>
-            <Button variant="outline" size="sm" className="w-full border-white/30 text-white hover:bg-white/10 text-xs sm:text-sm">
-              <ImageIcon className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 text-gold" />
-              Upload Photo
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="mobile-card">
-          <CardContent className="p-3 sm:p-4">
-            <h3 className="font-semibold mb-2 text-white text-sm sm:text-base">Schedule Check-in</h3>
-            <p className="text-xs sm:text-sm text-white/60 mb-2 sm:mb-3">
-              Book a call with your coach
-            </p>
-            <Button variant="outline" size="sm" className="w-full border-white/30 text-white hover:bg-white/10 text-xs sm:text-sm">
-              <Video className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 text-gold" />
-              Schedule Call
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
     </div>
   );
 }
