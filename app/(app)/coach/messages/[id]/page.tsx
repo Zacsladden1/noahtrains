@@ -34,6 +34,20 @@ export default function CoachThreadPage() {
   }, [threadId]);
 
   useEffect(() => {
+    if (!threadId) return;
+    // realtime subscription for new messages in this thread
+    const channel = supabase
+      .channel(`coach-thread-${threadId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `thread_id=eq.${threadId}` }, (payload) => {
+        setMessages((prev) => [...prev, payload.new]);
+      })
+      .subscribe();
+    return () => {
+      try { supabase.removeChannel(channel); } catch {}
+    };
+  }, [threadId]);
+
+  useEffect(() => {
     // attempt to register subscription silently
     (async () => {
       try {
