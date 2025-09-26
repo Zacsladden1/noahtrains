@@ -35,6 +35,44 @@ export default function DashboardPage() {
     water: 3000,
   };
 
+  const testPush = async () => {
+    try {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        alert('Push not supported in this browser');
+        return;
+      }
+      const perm = await Notification.requestPermission();
+      if (perm !== 'granted') {
+        alert('Notifications not granted');
+        return;
+      }
+      const reg = await navigator.serviceWorker.register('/sw.js');
+      const response = await fetch('/api/push/vapid');
+      const { publicKey } = await response.json();
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: (() => {
+          const base64 = publicKey || '';
+          const padding = '='.repeat((4 - (base64.length % 4)) % 4);
+          const b64 = (base64 + padding).replace(/-/g, '+').replace(/_/g, '/');
+          const raw = atob(b64);
+          const arr = new Uint8Array(raw.length);
+          for (let i = 0; i < raw.length; ++i) arr[i] = raw.charCodeAt(i);
+          return arr;
+        })()
+      });
+      await fetch('/api/push/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscription: sub })
+      });
+      alert('Test push sent (if supported on device).');
+    } catch (e) {
+      console.error(e);
+      alert('Failed to send test push');
+    }
+  };
+
   useEffect(() => {
     if (profile) {
       fetchDashboardData();
@@ -291,10 +329,10 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <p className="text-xs sm:text-sm text-white/60 mb-2 sm:mb-3">
-              No new notifications
+              Send yourself a test push notification
             </p>
-            <Button variant="outline" size="sm" className="w-full border-white/30 text-white hover:bg-white/10">
-              View All
+            <Button onClick={testPush} variant="outline" size="sm" className="w-full border-white/30 text-white hover:bg-white/10">
+              Send Test Push
             </Button>
           </CardContent>
         </Card>
