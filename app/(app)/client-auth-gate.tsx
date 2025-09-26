@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import FullscreenSpinner from '@/components/ui/fullscreen-spinner';
 
 export default function ClientAuthGate({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -17,11 +18,7 @@ export default function ClientAuthGate({ children }: { children: React.ReactNode
 
   if (loading) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-        <div className="flex flex-col items-center gap-3">
-          <LoadingSpinner size="lg" />
-        </div>
-      </div>
+      <FullscreenSpinner />
     );
   }
 

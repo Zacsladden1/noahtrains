@@ -16,7 +16,8 @@ import {
   X,
   LogOut,
   Users,
-  BarChart3
+  BarChart3,
+  Bell
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -49,6 +50,14 @@ const adminNavItems = [
   { href: '/library', icon: BookOpen, label: 'Library' },
 ];
 
+const coachNavItems = [
+  { href: '/coach', icon: BarChart3, label: 'Dashboard' },
+  { href: '/coach/clients', icon: Users, label: 'Clients' },
+  { href: '/coach/messages', icon: MessageCircle, label: 'Messages' },
+  { href: '/coach/notifications', icon: Bell, label: 'Notifications' },
+  { href: '/coach/library', icon: BookOpen, label: 'Content' },
+];
+
 export function AppShell({ children }: AppShellProps) {
   const { profile, signOut, isAdmin } = useAuth();
   const pathname = usePathname();
@@ -56,14 +65,7 @@ export function AppShell({ children }: AppShellProps) {
 
   const isCoach = profile?.role === 'coach';
   const navItems = isCoach
-    ? [
-        { href: '/coach', icon: BarChart3, label: 'Coach' },
-        { href: '/dashboard', icon: Home, label: 'Dashboard' },
-        { href: '/workouts', icon: Dumbbell, label: 'Workouts' },
-        { href: '/nutrition', icon: Apple, label: 'Nutrition' },
-        { href: '/messages', icon: MessageCircle, label: 'Messages' },
-        { href: '/library', icon: BookOpen, label: 'Library' },
-      ]
+    ? coachNavItems
     : isAdmin
     ? adminNavItems
     : clientNavItems;

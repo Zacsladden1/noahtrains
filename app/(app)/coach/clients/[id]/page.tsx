@@ -5,7 +5,8 @@ import { useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Flame, Egg, Wheat, Droplet, Droplets, Coffee, Sun, Sunset, Apple, CircleDot } from 'lucide-react';
+import { Flame, Egg, Wheat, Droplet, Droplets, Coffee, Sun, Sunset, Apple, CircleDot, ChevronDown } from 'lucide-react';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { supabase } from '@/lib/supabase';
 
 export default function CoachClientDetailPage() {
@@ -128,31 +129,53 @@ export default function CoachClientDetailPage() {
           <CardTitle className="text-white text-base">Daily Targets</CardTitle>
         </CardHeader>
         <CardContent>
+          <Collapsible defaultOpen={false}>
+            <CollapsibleTrigger className="flex items-center gap-2 text-white underline text-sm">
+              <ChevronDown className="w-4 h-4 text-white" /> Show targets
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <div className="flex flex-col">
               <label className="flex items-center gap-2 text-white/80 text-sm mb-1"><Flame className="w-4 h-4 text-gold" /> Calories</label>
-              <Input type="number" inputMode="numeric" value={targets.calories} onChange={(e)=>setTargets({...targets, calories:Number(e.target.value)})} className="mobile-input w-full" />
+              <Input type="number" inputMode="numeric" value={targets.calories ?? ''} onChange={(e)=>{
+                const v = e.target.value;
+                setTargets({...targets, calories: v === '' ? '' : Number(v)});
+              }} className="mobile-input w-full" />
             </div>
             <div className="flex flex-col">
               <label className="flex items-center gap-2 text-white/80 text-sm mb-1"><Egg className="w-4 h-4 text-gold" /> Protein (g)</label>
-              <Input type="number" inputMode="numeric" value={targets.protein} onChange={(e)=>setTargets({...targets, protein:Number(e.target.value)})} className="mobile-input w-full" />
+              <Input type="number" inputMode="numeric" value={targets.protein ?? ''} onChange={(e)=>{
+                const v = e.target.value;
+                setTargets({...targets, protein: v === '' ? '' : Number(v)});
+              }} className="mobile-input w-full" />
             </div>
             <div className="flex flex-col">
               <label className="flex items-center gap-2 text-white/80 text-sm mb-1"><Wheat className="w-4 h-4 text-gold" /> Carbs (g)</label>
-              <Input type="number" inputMode="numeric" value={targets.carbs} onChange={(e)=>setTargets({...targets, carbs:Number(e.target.value)})} className="mobile-input w-full" />
+              <Input type="number" inputMode="numeric" value={targets.carbs ?? ''} onChange={(e)=>{
+                const v = e.target.value;
+                setTargets({...targets, carbs: v === '' ? '' : Number(v)});
+              }} className="mobile-input w-full" />
             </div>
             <div className="flex flex-col">
               <label className="flex items-center gap-2 text-white/80 text-sm mb-1"><CircleDot className="w-4 h-4 text-gold" /> Fat (g)</label>
-              <Input type="number" inputMode="numeric" value={targets.fat} onChange={(e)=>setTargets({...targets, fat:Number(e.target.value)})} className="mobile-input w-full" />
+              <Input type="number" inputMode="numeric" value={targets.fat ?? ''} onChange={(e)=>{
+                const v = e.target.value;
+                setTargets({...targets, fat: v === '' ? '' : Number(v)});
+              }} className="mobile-input w-full" />
             </div>
             <div className="flex flex-col sm:col-span-2 lg:col-span-1">
               <label className="flex items-center gap-2 text-white/80 text-sm mb-1"><Droplets className="w-4 h-4 text-gold" /> Water (ml)</label>
-              <Input type="number" inputMode="numeric" value={targets.water} onChange={(e)=>setTargets({...targets, water:Number(e.target.value)})} className="mobile-input w-full" />
+              <Input type="number" inputMode="numeric" value={targets.water ?? ''} onChange={(e)=>{
+                const v = e.target.value;
+                setTargets({...targets, water: v === '' ? '' : Number(v)});
+              }} className="mobile-input w-full" />
             </div>
           </div>
           <div className="mt-4">
             <Button variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={saveTargets} disabled={saving}>{saving ? 'Saving…' : 'Save'}</Button>
           </div>
+            </CollapsibleContent>
+          </Collapsible>
         </CardContent>
       </Card>
 

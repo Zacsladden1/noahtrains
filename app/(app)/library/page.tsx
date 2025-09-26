@@ -233,12 +233,7 @@ export default function LibraryPage() {
                       ))}
                     </div>
                     
-                    <Button asChild className="w-full bg-gold hover:bg-gold/90 text-black text-sm">
-                      <a href={publicUrl} target="_blank" rel="noopener noreferrer">
-                        <Play className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 text-black" />
-                        Watch Video
-                      </a>
-                    </Button>
+                    {/* Video is playable inline; external link button removed */}
                   </CardContent>
                 </Card>
               );})}
@@ -307,12 +302,7 @@ export default function LibraryPage() {
                         </Badge>
                       ))}
                     </div>
-                    <Button asChild className="w-full bg-gold hover:bg-gold/90 text-black text-sm">
-                      <a href={publicUrl} target="_blank" rel="noopener noreferrer">
-                        <Play className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 text-black" />
-                        Watch Video
-                      </a>
-                    </Button>
+                    {/* Video is playable inline; external link button removed */}
                   </CardContent>
                 </Card>
               );})}

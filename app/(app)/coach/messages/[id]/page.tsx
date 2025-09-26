@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Send, Paperclip, Image as ImageIcon, Phone, Video, MoreVertical } from 'lucide-react';
+import { useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/use-auth';
 
@@ -17,6 +18,8 @@ export default function CoachThreadPage() {
   const [messages, setMessages] = useState<any[]>([]);
   const [client, setClient] = useState<any>(null);
   const [text, setText] = useState('');
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (!threadId) return;
@@ -27,8 +30,8 @@ export default function CoachThreadPage() {
         setClient(cp);
       }
       const { data: msgs } = await supabase
-        .from('messages')
-        .select('id, sender_id, body, created_at')
+      .from('messages')
+      .select('id, sender_id, body, created_at, attachments:attachments(id, storage_path, file_name, mime_type, file_size)')
         .eq('thread_id', threadId)
         .order('created_at', { ascending: true });
       setMessages(msgs || []);
@@ -106,6 +109,22 @@ export default function CoachThreadPage() {
     await fetch('/api/push/message', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ threadId }) });
   };
 
+  const uploadAttachment = async (file: File) => {
+    if (!threadId || !profile?.id || !file) return;
+    const path = `thread/${threadId}/${Date.now()}_${file.name}`.replace(/\s+/g, '_');
+    const { data, error } = await supabase.storage.from('chat').upload(path, file);
+    if (error) { console.error(error); return; }
+    const { data: pub } = supabase.storage.from('chat').getPublicUrl(data.path);
+    const { data: msg } = await supabase.from('messages').insert({ thread_id: threadId, sender_id: profile.id, body: null }).select('id').single();
+    await supabase.from('attachments').insert({ message_id: msg!.id, storage_path: data.path, file_name: file.name, mime_type: file.type, file_size: file.size });
+    const { data: msgs } = await supabase
+      .from('messages')
+      .select('id, sender_id, body, created_at')
+      .eq('thread_id', threadId)
+      .order('created_at', { ascending: true });
+    setMessages(msgs || []);
+  };
+
   return (
     <div className="mobile-padding mobile-spacing max-w-4xl mx-auto bg-black min-h-screen">
       {/* Header */}
@@ -123,8 +142,6 @@ export default function CoachThreadPage() {
           </div>
         </div>
         <div className="hidden sm:flex items-center space-x-2">
-          <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 w-8 h-8 sm:w-10 sm:h-10"><Phone className="w-4 h-4 text-gold" /></Button>
-          <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 w-8 h-8 sm:w-10 sm:h-10"><Video className="w-4 h-4 text-gold" /></Button>
           <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 w-8 h-8 sm:w-10 sm:h-10"><MoreVertical className="w-4 h-4 text-white" /></Button>
         </div>
       </div>
@@ -143,6 +160,7 @@ export default function CoachThreadPage() {
             ) : (
               messages.map((m) => {
                 const isOwn = m.sender_id === profile?.id;
+                const canDelete = m.sender_id === profile?.id;
                 return (
                   <div key={m.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
                     <div className={`flex items-end space-x-1 sm:space-x-2 max-w-xs lg:max-w-md ${isOwn ? 'flex-row-reverse space-x-reverse' : ''}`}>
@@ -153,7 +171,43 @@ export default function CoachThreadPage() {
                       )}
                       <div className={`px-4 py-2 rounded-2xl ${isOwn ? 'bg-gold text-black' : 'bg-white/10 text-white'}`}>
                         <p className="text-xs sm:text-sm whitespace-pre-wrap">{m.body}</p>
-                        <p className={`text-[10px] mt-1 ${isOwn ? 'text-black/70' : 'text-white/60'}`}>{new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                        {Array.isArray((m as any).attachments) && (m as any).attachments.length > 0 && (
+                          <div className="mt-2 space-y-2">
+                            {(m as any).attachments.map((att:any) => {
+                              const { data } = supabase.storage.from('chat').getPublicUrl(att.storage_path);
+                              const url = data.publicUrl;
+                              const isImage = (att.mime_type || '').startsWith('image/');
+                              return isImage ? (
+                                <a key={att.id} href={url} target="_blank" rel="noreferrer">
+                                  <img src={url} alt={att.file_name} className="max-h-40 max-w-[220px] w-auto h-auto rounded-md" />
+                                </a>
+                              ) : (
+                                <a key={att.id} href={url} target="_blank" rel="noreferrer" className="underline text-xs">
+                                  {att.file_name}
+                                </a>
+                              );
+                            })}
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between mt-1">
+                          <p className={`text-[10px] ${isOwn ? 'text-black/70' : 'text-white/60'}`}>{new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                          {canDelete && (
+                            <button
+                              className={`text-[10px] underline ${isOwn ? 'text-black/80' : 'text-white/80'}`}
+                              onClick={async ()=>{
+                                await supabase.from('messages').delete().eq('id', m.id);
+                                const { data: msgs } = await supabase
+                                  .from('messages')
+                                  .select('id, sender_id, body, created_at, attachments:attachments(id, storage_path, file_name, mime_type, file_size)')
+                                  .eq('thread_id', threadId)
+                                  .order('created_at', { ascending: true });
+                                setMessages(msgs || []);
+                              }}
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -165,8 +219,10 @@ export default function CoachThreadPage() {
         {/* Input */}
         <div className="border-t border-white/20 p-3 sm:p-4">
           <div className="flex items-center space-x-1 sm:space-x-2">
-            <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 w-8 h-8 sm:w-10 sm:h-10"><Paperclip className="w-4 h-4 text-gold" /></Button>
-            <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 w-8 h-8 sm:w-10 sm:h-10"><ImageIcon className="w-4 h-4 text-gold" /></Button>
+            <input ref={fileInputRef} type="file" className="hidden" onChange={(e)=>{ const f=e.target.files?.[0]; if(f) uploadAttachment(f); e.currentTarget.value=''; }} />
+            <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={(e)=>{ const f=e.target.files?.[0]; if(f) uploadAttachment(f); e.currentTarget.value=''; }} />
+            <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 w-8 h-8 sm:w-10 sm:h-10" onClick={()=>fileInputRef.current?.click()}><Paperclip className="w-4 h-4 text-gold" /></Button>
+            <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 w-8 h-8 sm:w-10 sm:h-10" onClick={()=>imageInputRef.current?.click()}><ImageIcon className="w-4 h-4 text-gold" /></Button>
             <div className="flex-1">
               <Input
                 placeholder="Type a message..."

@@ -21,6 +21,7 @@ export default function CoachNotificationsPage() {
   const [selected, setSelected] = useState<string[]>([]);
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [lastError, setLastError] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -71,8 +72,29 @@ export default function CoachNotificationsPage() {
       alert(`Sent to ${j.sent || 0} device(s)`);
       setMessage('');
       setSelected([]);
+      setLastError(null);
     } catch (e: any) {
-      alert(e?.message || 'Failed');
+      const msg = e?.message || 'Failed';
+      setLastError(msg);
+      alert(msg);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const sendTestToMe = async () => {
+    if (!profile?.id) return alert('Profile not ready');
+    setSending(true);
+    try {
+      const res = await fetch('/api/push/broadcast', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userIds: [profile.id], payload: { title: 'Test', body: 'Hello from Coach panel', url: '/messages' } }) });
+      const j = await res.json();
+      if (!j.ok) throw new Error(j.error || 'Failed');
+      alert(`Sent to ${j.sent || 0} device(s)`);
+      setLastError(null);
+    } catch (e: any) {
+      const msg = e?.message || 'Failed';
+      setLastError(msg);
+      alert(msg);
     } finally {
       setSending(false);
     }
@@ -95,7 +117,11 @@ export default function CoachNotificationsPage() {
           <div className="flex gap-2">
             <Button onClick={send} disabled={sending} className="bg-gold hover:bg-gold/90 text-black">Send</Button>
             <EnableNotificationsButton className="border-white/30 text-white hover:bg-white/10 px-4 py-2 rounded-md border" />
+            <Button variant="outline" onClick={sendTestToMe} disabled={sending} className="border-white/30 text-white hover:bg-white/10">Send test to me</Button>
           </div>
+          {lastError && (
+            <p className="text-xs text-destructive">{lastError}</p>
+          )}
         </CardContent>
       </Card>
 

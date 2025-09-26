@@ -16,6 +16,7 @@ import {
   MoreVertical,
   Image as ImageIcon
 } from 'lucide-react';
+import { useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function MessagesPage() {
@@ -26,6 +27,8 @@ export default function MessagesPage() {
   const [loading, setLoading] = useState(true);
   const [threadId, setThreadId] = useState<string | null>(null);
   const [coachId, setCoachId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (profile?.role === 'coach') {
@@ -129,7 +132,7 @@ export default function MessagesPage() {
     try {
       const { data } = await supabase
         .from('messages')
-        .select('*')
+        .select('*, attachments:attachments(id, storage_path, file_name, mime_type, file_size)')
         .eq('thread_id', tid)
         .order('created_at', { ascending: true });
       setMessages(data || []);
@@ -152,6 +155,16 @@ export default function MessagesPage() {
     } catch (e) {
       console.error('Error sending message:', e);
     }
+  };
+
+  const uploadAttachment = async (file: File) => {
+    if (!threadId || !profile?.id || !file) return;
+    const path = `thread/${threadId}/${Date.now()}_${file.name}`.replace(/\s+/g, '_');
+    const { data, error } = await supabase.storage.from('chat').upload(path, file);
+    if (error) { console.error(error); return; }
+    const { data: pub } = supabase.storage.from('chat').getPublicUrl(data.path);
+    await supabase.from('attachments').insert({ message_id: (await supabase.from('messages').insert({ thread_id: threadId, sender_id: profile.id, body: null }).select('id').single()).data.id, storage_path: data.path, file_name: file.name, mime_type: file.type, file_size: file.size });
+    await fetchMessages(threadId);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -210,12 +223,6 @@ export default function MessagesPage() {
             </div>
             <div className="flex items-center space-x-1 sm:space-x-2">
               <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 w-8 h-8 sm:w-10 sm:h-10">
-                <Phone className="w-3 h-3 sm:w-4 sm:h-4 text-gold" />
-              </Button>
-              <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 w-8 h-8 sm:w-10 sm:h-10">
-                <Video className="w-3 h-3 sm:w-4 sm:h-4 text-gold" />
-              </Button>
-              <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 w-8 h-8 sm:w-10 sm:h-10">
                 <MoreVertical className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
               </Button>
             </div>
@@ -234,6 +241,7 @@ export default function MessagesPage() {
             ) : (
               messages.map((message) => {
                 const isOwn = message.sender_id === profile?.id;
+                const canDelete = message.sender_id === profile?.id;
                 return (
                   <div
                     key={message.id}
@@ -251,12 +259,43 @@ export default function MessagesPage() {
                         }`}
                       >
                         <p className="text-xs sm:text-sm">{message.body}</p>
-                        <p className={`text-xs mt-1 ${isOwn ? 'text-black/70' : 'text-white/60'}`}>
-                          {new Date(message.created_at).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </p>
+                        {Array.isArray((message as any).attachments) && (message as any).attachments.length > 0 && (
+                          <div className="mt-2 space-y-2">
+                            {(message as any).attachments.map((att:any) => {
+                              const { data } = supabase.storage.from('chat').getPublicUrl(att.storage_path);
+                              const url = data.publicUrl;
+                              const isImage = (att.mime_type || '').startsWith('image/');
+                              return isImage ? (
+                                <a key={att.id} href={url} target="_blank" rel="noreferrer">
+                                  <img src={url} alt={att.file_name} className="max-h-40 max-w-[220px] w-auto h-auto rounded-md" />
+                                </a>
+                              ) : (
+                                <a key={att.id} href={url} target="_blank" rel="noreferrer" className="underline text-xs">
+                                  {att.file_name}
+                                </a>
+                              );
+                            })}
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between mt-1">
+                          <p className={`text-xs ${isOwn ? 'text-black/70' : 'text-white/60'}`}>
+                            {new Date(message.created_at).toLocaleTimeString([], {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </p>
+                          {canDelete && (
+                            <button
+                              className={`text-[10px] underline ${isOwn ? 'text-black/80' : 'text-white/80'}`}
+                              onClick={async ()=>{
+                                await supabase.from('messages').delete().eq('id', message.id);
+                                if (threadId) await fetchMessages(threadId);
+                              }}
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -269,10 +308,12 @@ export default function MessagesPage() {
         {/* Message Input */}
         <div className="border-t border-white/20 p-3 sm:p-4">
           <div className="flex items-center space-x-1 sm:space-x-2">
-            <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 w-8 h-8 sm:w-10 sm:h-10">
+            <input ref={fileInputRef} type="file" className="hidden" onChange={(e)=>{ const f=e.target.files?.[0]; if(f) uploadAttachment(f); e.currentTarget.value=''; }} />
+            <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={(e)=>{ const f=e.target.files?.[0]; if(f) uploadAttachment(f); e.currentTarget.value=''; }} />
+            <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 w-8 h-8 sm:w-10 sm:h-10" onClick={()=>fileInputRef.current?.click()}>
               <Paperclip className="w-3 h-3 sm:w-4 sm:h-4 text-gold" />
             </Button>
-            <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 w-8 h-8 sm:w-10 sm:h-10">
+            <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 w-8 h-8 sm:w-10 sm:h-10" onClick={()=>imageInputRef.current?.click()}>
               <ImageIcon className="w-3 h-3 sm:w-4 sm:h-4 text-gold" />
             </Button>
             <div className="flex-1">

@@ -178,14 +178,14 @@ export default function WorkoutsPage() {
             <div className="mobile-spacing">
               {workouts.map((workout) => (
                 <Card key={workout.id} className="mobile-card hover:border-gold/50 transition-colors">
-                  <CardContent className="p-4 sm:p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2 sm:space-x-4 flex-1 min-w-0">
+                  <CardContent className="p-3 sm:p-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
                         <div className="flex items-center space-x-1 sm:space-x-2">
                           {getStatusIcon(workout.status)}
                           <div>
-                            <h3 className="font-semibold text-white text-sm sm:text-base truncate">{workout.name}</h3>
-                            <div className="flex items-center space-x-2 sm:space-x-4 text-xs sm:text-sm text-white/60">
+                            <h3 className="font-semibold text-white text-sm sm:text-base truncate max-w-[160px] sm:max-w-none">{workout.name}</h3>
+                            <div className="flex items-center gap-2 sm:gap-4 text-[10px] sm:text-sm text-white/60">
                               <span className="flex items-center">
                                 <Calendar className="w-4 h-4 mr-1 text-gold" />
                                 {new Date(workout.created_at).toLocaleDateString()}
@@ -205,15 +205,15 @@ export default function WorkoutsPage() {
                         </div>
                       </div>
                       
-                      <div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
-                        <Badge className={getStatusColor(workout.status)}>
+                      <div className="flex flex-col sm:flex-row items-end sm:items-center gap-1 sm:gap-3 flex-shrink-0 w-auto">
+                        <Badge className={`hidden sm:inline-flex ${getStatusColor(workout.status)}`}>
                           {workout.status.replace('_', ' ').toUpperCase()}
                         </Badge>
                         <Link href={`/workouts/${workout.id}`}>
                           <Button 
                             className={workout.status === 'completed' 
-                              ? 'border-white/30 text-white hover:bg-white/10 text-xs sm:text-sm' 
-                              : 'bg-gold hover:bg-gold/90 text-black text-xs sm:text-sm'
+                              ? 'border-white/30 text-white hover:bg-white/10 text-xs sm:text-sm px-2 w-full sm:w-auto' 
+                              : 'bg-gold hover:bg-gold/90 text-black text-xs sm:text-sm px-2 w-full sm:w-auto'
                             }
                             variant={workout.status === 'completed' ? 'outline' : 'default'}
                             size="sm"
