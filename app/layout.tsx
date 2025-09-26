@@ -84,6 +84,16 @@ export default function RootLayout({
       <body className="min-h-screen bg-background text-foreground">
         {children}
         <ChunkErrorReload />
+        <script dangerouslySetInnerHTML={{__html: `
+          (function(){
+            try { window.VAPID_PUBLIC_KEY = '${process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? ''}'; } catch(e){}
+            if ('serviceWorker' in navigator) {
+              window.addEventListener('load', function () {
+                navigator.serviceWorker.register('/sw.js').catch(function(err){console.warn('SW reg failed', err)});
+              });
+            }
+          })();
+        `}} />
       </body>
     </html>
   );

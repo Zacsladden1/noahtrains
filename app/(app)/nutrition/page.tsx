@@ -276,6 +276,36 @@ export default function NutritionPage() {
             <Scan className="w-4 h-4 sm:mr-2 text-gold" />
             <span className="hidden sm:inline">Scan</span>
           </Button>
+          <Button
+            variant="outline"
+            className="border-white/30 text-white hover:bg-white/10 text-xs sm:text-sm"
+            onClick={async () => {
+              try {
+                const reg = await navigator.serviceWorker.ready;
+                const sub = await reg.pushManager.subscribe({
+                  userVisibleOnly: true,
+                  applicationServerKey: (window as any).VAPID_PUBLIC_KEY || undefined,
+                });
+                const uid = (window as any).supabaseAuthUserId || null;
+                await fetch('/api/push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: uid, subscription: sub }) });
+                alert('Push enabled');
+              } catch (e) { console.error(e); alert('Failed to enable push'); }
+            }}
+          >
+            Enable Push
+          </Button>
+          <Button
+            className="bg-gold hover:bg-gold/90 text-black text-xs sm:text-sm"
+            onClick={async () => {
+              try {
+                const uid = (window as any).supabaseAuthUserId || null;
+                await fetch('/api/push/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: uid }) });
+                alert('Test notification sent');
+              } catch (e) { console.error(e); }
+            }}
+          >
+            Send Test
+          </Button>
         </div>
       </div>
 
