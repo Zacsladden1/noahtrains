@@ -16,9 +16,11 @@ import {
   MoreVertical,
   Image as ImageIcon
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 export default function MessagesPage() {
   const { profile } = useAuth();
+  const router = useRouter();
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
@@ -26,8 +28,12 @@ export default function MessagesPage() {
   const [coachId, setCoachId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (profile?.role === 'coach') {
+      router.replace('/coach/messages');
+      return;
+    }
     if (profile?.id) initializeMessaging();
-  }, [profile?.id]);
+  }, [profile?.id, profile?.role]);
 
   const initializeMessaging = async () => {
     if (!profile?.id) return;
