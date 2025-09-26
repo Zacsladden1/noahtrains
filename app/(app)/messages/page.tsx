@@ -120,10 +120,13 @@ export default function MessagesPage() {
   const sendMessage = async () => {
     if (!newMessage.trim() || !threadId || !profile?.id) return;
     try {
+      const body = newMessage.trim();
       const { error } = await supabase
         .from('messages')
-        .insert({ thread_id: threadId, sender_id: profile.id, body: newMessage.trim() });
+        .insert({ thread_id: threadId, sender_id: profile.id, body });
       if (error) throw error;
+      // bump thread activity so coach inbox shows it
+      await supabase.from('message_threads').update({ last_message_at: new Date().toISOString() }).eq('id', threadId);
       setNewMessage('');
       await fetchMessages(threadId);
     } catch (e) {
