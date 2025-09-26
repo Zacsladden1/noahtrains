@@ -138,7 +138,7 @@ export default function WorkoutsPage() {
   }
 
   return (
-    <div className="mobile-padding mobile-spacing bg-black min-h-screen">
+    <div className="mobile-padding mobile-spacing bg-black min-h-screen overflow-x-hidden">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

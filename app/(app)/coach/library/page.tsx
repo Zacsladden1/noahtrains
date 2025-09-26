@@ -14,6 +14,7 @@ export default function CoachLibraryManager() {
   const [videoTitle, setVideoTitle] = useState('');
   const [videoCategory, setVideoCategory] = useState('');
   const [videoTags, setVideoTags] = useState('');
+  const [videoSection, setVideoSection] = useState<'form' | 'cooking'>('form');
   const [docFile, setDocFile] = useState<File | null>(null);
   const [docTitle, setDocTitle] = useState('');
   const [docCategory, setDocCategory] = useState('');
@@ -56,8 +57,10 @@ export default function CoachLibraryManager() {
         tags: videoTags ? videoTags.split(',').map((t) => t.trim()) : null,
         storage_path,
         is_public: true,
+        section: videoSection,
       });
       setVideoFile(null); setVideoTitle(''); setVideoCategory(''); setVideoTags('');
+      setVideoSection('form');
       alert('Video uploaded');
       await refreshLists();
     } finally {
@@ -130,6 +133,14 @@ export default function CoachLibraryManager() {
             <Input placeholder="Title" value={videoTitle} onChange={(e)=>setVideoTitle(e.target.value)} className="mobile-input" />
             <Input placeholder="Category" value={videoCategory} onChange={(e)=>setVideoCategory(e.target.value)} className="mobile-input" />
             <Input placeholder="Tags (comma separated)" value={videoTags} onChange={(e)=>setVideoTags(e.target.value)} className="mobile-input" />
+            <div>
+              <label className="text-white/80 text-sm">Section</label>
+              <select className="w-full mt-1 bg-black border border-white/30 rounded-md text-white p-2" value={videoSection}
+                onChange={(e)=>setVideoSection(e.target.value as 'form' | 'cooking')}>
+                <option value="form">Form</option>
+                <option value="cooking">Cooking</option>
+              </select>
+            </div>
             <Button onClick={saveVideo} disabled={!videoFile || !videoTitle || saving} className="bg-gold hover:bg-gold/90 text-black">{saving ? 'Saving…' : 'Upload Video'}</Button>
           </CardContent>
         </Card>
