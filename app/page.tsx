@@ -129,7 +129,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`}
 };
 
 export default function HomePage() {
-  const { user, loading, error } = useAuth();
+  const { user, loading, error, profile } = useAuth();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [authStalled, setAuthStalled] = useState(false);
@@ -150,14 +150,15 @@ export default function HomePage() {
 
   useEffect(() => {
     if (user && !loading && mounted) {
-      const url = `/dashboard?v=${Date.now()}`;
+      const target = profile?.role === 'coach' ? '/coach' : '/dashboard';
+      const url = `${target}?v=${Date.now()}`;
       if (typeof window !== 'undefined') {
         window.location.replace(url);
       } else {
-        router.push('/dashboard');
+        router.push(target);
       }
     }
-  }, [user, loading, mounted, router]);
+  }, [user, loading, mounted, profile, router]);
 
   // Show setup page if Supabase isn't configured
   if (showSetup) {

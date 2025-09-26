@@ -220,6 +220,7 @@ export function useAuth() {
     signOut,
     resetPassword,
     isAdmin: profile?.role === 'admin',
+    isCoach: profile?.role === 'coach',
     isClient: profile?.role === 'client',
   };
 }

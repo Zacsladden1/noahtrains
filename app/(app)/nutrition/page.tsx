@@ -20,8 +20,7 @@ import {
   Moon,
   Apple
 } from 'lucide-react';
-import dynamic from 'next/dynamic';
-const MacroRings = dynamic(() => import('@/components/nutrition/macro-rings').then(m => m.MacroRings), { ssr: false });
+import { MacroRings } from '@/components/nutrition/macro-rings';
 import { FoodLogDialog, EditFoodLogDialog } from '@/components/nutrition/food-log-dialog';
 import { NutritionLog, WaterLog, NutritionTargets } from '@/types/supabase';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';

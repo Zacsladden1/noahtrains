@@ -3,14 +3,13 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { supabase } from '@/lib/supabase';
-import dynamic from 'next/dynamic';
-const OverviewCards = dynamic(() => import('@/components/dashboard/overview-cards').then(m => m.OverviewCards), { ssr: false });
-const TodaysWorkout = dynamic(() => import('@/components/dashboard/todays-workout').then(m => m.TodaysWorkout), { ssr: false });
-const MacroRings = dynamic(() => import('@/components/nutrition/macro-rings').then(m => m.MacroRings), { ssr: false });
+import { OverviewCards } from '@/components/dashboard/overview-cards';
+import { TodaysWorkout } from '@/components/dashboard/todays-workout';
+import { MacroRings } from '@/components/nutrition/macro-rings';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, MessageCircle, Bell } from 'lucide-react';
-import { Workout, NutritionLog, WaterLog } from '@/types/supabase';
+import { Plus, MessageCircle } from 'lucide-react';
+import { Workout, NutritionLog } from '@/types/supabase';
 
 export default function DashboardPage() {
   const { profile, isAdmin } = useAuth();
@@ -312,28 +311,12 @@ export default function DashboardPage() {
             <p className="text-xs sm:text-sm text-white/60 mb-2 sm:mb-3">
               {isAdmin ? 'Check in with your clients' : 'Connect with your coach'}
             </p>
-            <Button variant="outline" size="sm" className="w-full border-white/30 text-white hover:bg-white/10">
-              <Plus className="w-4 h-4 mr-2 text-gold" />
-              New Message
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Notifications */}
-        <Card className="mobile-card">
-          <CardHeader>
-            <CardTitle className="text-base sm:text-lg flex items-center gap-2 text-white">
-              <Bell className="w-5 h-5 text-gold" />
-              Notifications
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs sm:text-sm text-white/60 mb-2 sm:mb-3">
-              Send yourself a test push notification
-            </p>
-            <Button onClick={testPush} variant="outline" size="sm" className="w-full border-white/30 text-white hover:bg-white/10">
-              Send Test Push
-            </Button>
+            <a href="/messages" className="block">
+              <Button variant="outline" size="sm" className="w-full border-white/30 text-white hover:bg-white/10">
+                <Plus className="w-4 h-4 mr-2 text-gold" />
+                Open Messages
+              </Button>
+            </a>
           </CardContent>
         </Card>
       </div>

@@ -53,7 +53,19 @@ export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const navItems = isAdmin ? adminNavItems : clientNavItems;
+  const isCoach = profile?.role === 'coach';
+  const navItems = isCoach
+    ? [
+        { href: '/coach', icon: BarChart3, label: 'Coach' },
+        { href: '/dashboard', icon: Home, label: 'Dashboard' },
+        { href: '/workouts', icon: Dumbbell, label: 'Workouts' },
+        { href: '/nutrition', icon: Apple, label: 'Nutrition' },
+        { href: '/messages', icon: MessageCircle, label: 'Messages' },
+        { href: '/library', icon: BookOpen, label: 'Library' },
+      ]
+    : isAdmin
+    ? adminNavItems
+    : clientNavItems;
 
   const handleSignOut = async () => {
     await signOut();
