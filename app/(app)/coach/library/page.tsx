@@ -11,6 +11,7 @@ import { Play, Trash2, Pencil, Save, X } from 'lucide-react';
 
 export default function CoachLibraryManager() {
   const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [thumbFile, setThumbFile] = useState<File | null>(null);
   const [videoTitle, setVideoTitle] = useState('');
   const [videoCategory, setVideoCategory] = useState('');
   const [videoTags, setVideoTags] = useState('');
@@ -45,11 +46,19 @@ export default function CoachLibraryManager() {
     return data.path;
   };
 
+  const uploadThumbToBucket = async (file: File): Promise<string> => {
+    const path = `thumbs/${Date.now()}_${file.name}`.replace(/\s+/g, '_');
+    const { data, error } = await supabase.storage.from('videos').upload(path, file, { cacheControl: '3600', upsert: false, contentType: file.type || 'image/jpeg' });
+    if (error) throw error;
+    return data.path;
+  };
+
   const saveVideo = async () => {
     if (!videoFile || !videoTitle) return;
     setSaving(true);
     try {
       const storage_path = await uploadToBucket(videoFile);
+      const thumbnail_path = thumbFile ? await uploadThumbToBucket(thumbFile) : null;
       await supabase.from('videos').insert({
         title: videoTitle,
         description: '',
@@ -58,8 +67,9 @@ export default function CoachLibraryManager() {
         storage_path,
         is_public: true,
         section: videoSection,
+        thumbnail_path,
       });
-      setVideoFile(null); setVideoTitle(''); setVideoCategory(''); setVideoTags('');
+      setVideoFile(null); setThumbFile(null); setVideoTitle(''); setVideoCategory(''); setVideoTags('');
       setVideoSection('form');
       alert('Video uploaded');
       await refreshLists();
@@ -130,6 +140,7 @@ export default function CoachLibraryManager() {
           </CardHeader>
           <CardContent className="space-y-3">
             <Input type="file" accept="video/*" onChange={(e)=>setVideoFile(e.target.files?.[0] || null)} className="mobile-input" />
+            <Input type="file" accept="image/*" onChange={(e)=>setThumbFile(e.target.files?.[0] || null)} className="mobile-input" />
             <Input placeholder="Title" value={videoTitle} onChange={(e)=>setVideoTitle(e.target.value)} className="mobile-input" />
             <Input placeholder="Category" value={videoCategory} onChange={(e)=>setVideoCategory(e.target.value)} className="mobile-input" />
             <Input placeholder="Tags (comma separated)" value={videoTags} onChange={(e)=>setVideoTags(e.target.value)} className="mobile-input" />
