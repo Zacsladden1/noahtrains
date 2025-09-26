@@ -38,7 +38,7 @@ export default function CoachThreadPage() {
     (async () => {
       try {
         if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
-        if (Notification.permission === 'granted') {
+        if (Notification.permission === 'granted' && profile?.id) {
           const reg = await navigator.serviceWorker.register('/sw.js');
           const sub = await reg.pushManager.getSubscription() || await reg.pushManager.subscribe({
             userVisibleOnly: true,
@@ -54,12 +54,12 @@ export default function CoachThreadPage() {
             })()
           });
           if (sub) {
-            await fetch('/api/push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sub) });
+            await fetch('/api/push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...sub, userId: profile.id }) });
           }
         }
       } catch {}
     })();
-  }, []);
+  }, [profile?.id]);
 
   const send = async () => {
     if (!text.trim() || !profile?.id) return;
