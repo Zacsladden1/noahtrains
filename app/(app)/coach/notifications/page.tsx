@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/use-auth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import EnableNotificationsButton from '@/components/system/enable-notifications';
 import { Input } from '@/components/ui/input';
 
 const TEMPLATES = [
@@ -35,6 +36,7 @@ export default function CoachNotificationsPage() {
   const requestPermission = async () => {
     try {
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) return alert('Push not supported');
+      if (process.env.NODE_ENV !== 'production') return alert('Enable notifications in production build only.');
       const perm = await Notification.requestPermission();
       if (perm !== 'granted') return alert('Notifications not granted');
       const reg = await navigator.serviceWorker.register('/sw.js');
@@ -92,7 +94,7 @@ export default function CoachNotificationsPage() {
           <Input value={message} onChange={(e)=>setMessage(e.target.value)} placeholder="Type a notification..." className="mobile-input" />
           <div className="flex gap-2">
             <Button onClick={send} disabled={sending} className="bg-gold hover:bg-gold/90 text-black">Send</Button>
-            <Button variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={requestPermission}>Enable notifications on this device</Button>
+            <EnableNotificationsButton className="border-white/30 text-white hover:bg-white/10 px-4 py-2 rounded-md border" />
           </div>
         </CardContent>
       </Card>

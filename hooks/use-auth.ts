@@ -32,9 +32,10 @@ export function useAuth() {
     initTimeout = setTimeout(() => {
       if (!mounted) return;
       console.warn('Auth initialization timed out');
-      setError((prev) => prev ?? 'Auth initialization timed out');
+      // Do not block the UI if auth init is slow; continue with limited UI
+      setError((prev) => prev ?? null);
       setLoading(false);
-    }, 6000);
+    }, 12000);
 
     supabase.auth.getSession().then((result: any) => {
       const session = result.data?.session as any;
@@ -117,38 +118,28 @@ export function useAuth() {
         // use maybeSingle() to avoid a 406/error when no rows are returned
         .maybeSingle();
 
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
+      const timeoutPromise = new Promise((resolve) =>
+        setTimeout(() => resolve({ data: null, error: new Error('Profile fetch timeout') }), 10000)
       );
 
-      // Race the fetch against the timeout
-      const res: any = await Promise.race([fetchPromise, timeoutPromise]);
-      const { data, error } = res || {};
+      // Race the fetch against the timeout, but never throw
+      const res: any = await Promise.race([fetchPromise, timeoutPromise]).catch((e:any) => ({ data: null, error: e }));
+      const { data, error } = res || {} as any;
 
       if (error) {
-        console.error('Error fetching profile:', error);
-        // Don't fail completely if profile fetch fails, just log it
-        setError(`Profile fetch failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        // In production, if database is not accessible, create a basic profile from auth data
-        if (process.env.NODE_ENV === 'production' && error.message?.includes('Invalid API key')) {
-          console.warn('Database not accessible, using fallback profile');
-          return true; // Don't block the user
-        }
-        return false;
+        console.warn('Profile fetch issue:', error?.message || error);
+        // Continue without blocking the user; profile can be null temporarily
+        setError((prev) => prev ?? null);
+        return true;
       }
 
       setProfile(data);
       return true;
     } catch (error) {
-      console.error('Error fetching profile:', error);
-      // Don't fail completely if profile fetch fails, just log it
-      setError(`Profile fetch failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      // In production, if database is not accessible, don't block the user
-      if (process.env.NODE_ENV === 'production') {
-        console.warn('Database not accessible in production, continuing without profile');
-        return true; // Don't block the user
-      }
-      return false;
+      console.warn('Error fetching profile (continuing):', (error as any)?.message || error);
+      // Continue without blocking the user
+      setError((prev) => prev ?? null);
+      return true;
     } finally {
       setLoading(false);
     }

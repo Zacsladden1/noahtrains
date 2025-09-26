@@ -12,7 +12,7 @@ export default function CoachClientsPage() {
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from('profiles').select('id, full_name, email, role').eq('role', 'client').limit(100);
+      const { data } = await supabase.from('profiles').select('id, full_name, email, role, created_at').eq('role', 'client').order('created_at', { ascending: false }).limit(100);
       setClients(data || []);
     })();
   }, []);
@@ -30,6 +30,7 @@ export default function CoachClientsPage() {
               <CardTitle className="text-white text-base">{c.full_name || c.email}</CardTitle>
             </CardHeader>
             <CardContent>
+              <p className="text-white/60 text-xs mb-2">Joined {new Date(c.created_at).toLocaleDateString()}</p>
               <Link href={`/coach/clients/${c.id}`} className="text-gold text-sm underline">Open</Link>
             </CardContent>
           </Card>

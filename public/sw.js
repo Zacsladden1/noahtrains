@@ -1,3 +1,34 @@
+self.addEventListener('install', (event) => {
+  // Ensure the new SW takes control immediately
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  // Claim clients and clear any old caches that might hold stale Next.js chunks
+  event.waitUntil((async () => {
+    try {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
+    } catch (_) {}
+    await self.clients.claim();
+  })());
+});
+
+self.addEventListener('fetch', (event) => {
+  const req = event.request;
+  const url = new URL(req.url);
+
+  // Always bypass caches for Next.js assets and navigations to prevent stale chunks
+  const isNextStatic = url.pathname.startsWith('/_next/static/');
+  const isNextImage = url.pathname.startsWith('/_next/image');
+  const isNavigation = req.mode === 'navigate';
+
+  if (isNextStatic || isNextImage || isNavigation) {
+    event.respondWith(fetch(req, { cache: 'no-store' }));
+    return;
+  }
+});
+
 self.addEventListener('push', (event) => {
   let data = {};
   try {

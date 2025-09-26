@@ -63,7 +63,9 @@ export default function LibraryPage() {
   documents.forEach(d => { if (d.category) categoriesSet.add(d.category); });
   const categories = ['all', ...Array.from(categoriesSet)];
 
-  const filteredVideos = videos.filter(video => {
+  const filteredVideos = videos
+    .filter(v => !!v.storage_path)
+    .filter(video => {
     const matchesSearch = video.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          video.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          video.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -73,7 +75,9 @@ export default function LibraryPage() {
     return matchesSearch && matchesCategory;
   });
 
-  const filteredDocuments = documents.filter(doc => {
+  const filteredDocuments = documents
+    .filter(d => !!d.storage_path)
+    .filter(doc => {
     const matchesSearch = doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          doc.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          doc.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -94,6 +98,16 @@ export default function LibraryPage() {
     if (!bytes) return '';
     const mb = bytes / (1024 * 1024);
     return `${mb.toFixed(1)} MB`;
+  };
+
+  const getPublicUrl = (path: string | null) => {
+    if (!path) return '';
+    try {
+      const { data } = supabase.storage.from('videos').getPublicUrl(path);
+      return data.publicUrl || '';
+    } catch {
+      return '';
+    }
   };
 
   if (loading) {
@@ -168,64 +182,19 @@ export default function LibraryPage() {
             </Card>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
-              {/* Featured local video */}
-              <Card className="mobile-card hover:border-gold/50 transition-colors">
-                <CardHeader className="p-0">
-                  <div className="relative aspect-video bg-white/10 rounded-t-xl sm:rounded-t-lg overflow-hidden">
-                    <video
-                      src="/HIGH%20TO%20LOW%20(DONE)%20(1).mp4"
-                      className="w-full h-full object-cover"
-                      controls
-                      playsInline
-                    />
-                  </div>
-                </CardHeader>
-                <CardContent className="p-3 sm:p-4 space-y-2 sm:space-y-3">
-                  <div>
-                    <CardTitle className="text-sm sm:text-lg line-clamp-2 text-white">Cable Chest Flys</CardTitle>
-                  </div>
-                  <Button asChild className="w-full bg-gold hover:bg-gold/90 text-black text-sm">
-                    <a href="/HIGH%20TO%20LOW%20(DONE)%20(1).mp4" target="_blank" rel="noopener noreferrer">
-                      <Play className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 text-black" />
-                      Watch Video
-                    </a>
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {/* Featured local video 2 */}
-              <Card className="mobile-card hover:border-gold/50 transition-colors">
-                <CardHeader className="p-0">
-                  <div className="relative aspect-video bg-white/10 rounded-t-xl sm:rounded-t-lg overflow-hidden">
-                    <video
-                      src="/DSC_3507%20(1)%20(1).mp4"
-                      className="w-full h-full object-cover"
-                      controls
-                      playsInline
-                    />
-                  </div>
-                </CardHeader>
-                <CardContent className="p-3 sm:p-4 space-y-2 sm:space-y-3">
-                  <div>
-                    <CardTitle className="text-sm sm:text-lg line-clamp-2 text-white">Healthy Chicken and Pasta dinner</CardTitle>
-                  </div>
-                  <Button asChild className="w-full bg-gold hover:bg-gold/90 text-black text-sm">
-                    <a href="/DSC_3507%20(1)%20(1).mp4" target="_blank" rel="noopener noreferrer">
-                      <Play className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 text-black" />
-                      Watch Video
-                    </a>
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {filteredVideos.map((video) => (
+              {filteredVideos.map((video) => {
+                const publicUrl = getPublicUrl(video.storage_path);
+                return (
                 <Card key={video.id} className="mobile-card hover:border-gold/50 transition-colors">
                   <CardHeader className="p-0">
                     <div className="relative aspect-video bg-white/10 rounded-t-xl sm:rounded-t-lg overflow-hidden">
-                      {/* Video thumbnail placeholder */}
-                      <div className="w-full h-full bg-gradient-to-br from-gold/20 to-gold/5 flex items-center justify-center">
-                        <Play className="w-8 h-8 sm:w-12 sm:h-12 text-gold opacity-80" />
-                      </div>
+                      {publicUrl ? (
+                        <video src={publicUrl} className="w-full h-full object-cover" controls playsInline preload="metadata" />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-gold/20 to-gold/5 flex items-center justify-center">
+                          <Play className="w-8 h-8 sm:w-12 sm:h-12 text-gold opacity-80" />
+                        </div>
+                      )}
                       
                       {/* Duration badge */}
                       {video.duration_seconds && (
@@ -260,45 +229,17 @@ export default function LibraryPage() {
                       ))}
                     </div>
                     
-                    <Button className="w-full bg-gold hover:bg-gold/90 text-black text-sm">
-                      <Play className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 text-black" />
-                      Watch Video
+                    <Button asChild className="w-full bg-gold hover:bg-gold/90 text-black text-sm">
+                      <a href={publicUrl} target="_blank" rel="noopener noreferrer">
+                        <Play className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 text-black" />
+                        Watch Video
+                      </a>
                     </Button>
                   </CardContent>
                 </Card>
-              ))}
+              );})}
             </div>
           )}
-
-          {/* Older section */}
-          <div className="mt-8">
-            <h3 className="text-white/80 text-sm sm:text-base mb-3">Older</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
-              <Card className="mobile-card hover:border-gold/50 transition-colors">
-                <CardHeader className="p-0">
-                  <div className="relative aspect-video bg-white/10 rounded-t-xl sm:rounded-t-lg overflow-hidden">
-                    <video
-                      src="/HIGH%20TO%20LOW%20(DONE)%20(1).mp4"
-                      className="w-full h-full object-cover"
-                      controls
-                      playsInline
-                    />
-                  </div>
-                </CardHeader>
-                <CardContent className="p-3 sm:p-4 space-y-2 sm:space-y-3">
-                  <div>
-                    <CardTitle className="text-sm sm:text-lg line-clamp-2 text-white">Cable Chest Flys</CardTitle>
-                  </div>
-                  <Button asChild className="w-full bg-gold hover:bg-gold/90 text-black text-sm">
-                    <a href="/HIGH%20TO%20LOW%20(DONE)%20(1).mp4" target="_blank" rel="noopener noreferrer">
-                      <Play className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 text-black" />
-                      Watch Video
-                    </a>
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
         </TabsContent>
 
         <TabsContent value="documents" className="mobile-spacing">
@@ -355,15 +296,19 @@ export default function LibraryPage() {
                     </div>
                     
                     <div className="flex gap-1 sm:gap-2">
-                      <Button variant="outline" size="sm" className="flex-1 border-white/30 text-white hover:bg-white/10 text-xs sm:text-sm">
-                        <ExternalLink className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 text-gold" />
-                        <span className="hidden sm:inline">View</span>
-                        <span className="sm:hidden">View</span>
+                      <Button asChild variant="outline" size="sm" className="flex-1 border-white/30 text-white hover:bg-white/10 text-xs sm:text-sm">
+                        <a href={getPublicUrl(document.storage_path)} target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 text-gold" />
+                          <span className="hidden sm:inline">View</span>
+                          <span className="sm:hidden">View</span>
+                        </a>
                       </Button>
-                      <Button variant="outline" size="sm" className="flex-1 border-white/30 text-white hover:bg-white/10 text-xs sm:text-sm">
-                        <Download className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 text-gold" />
-                        <span className="hidden sm:inline">Download</span>
-                        <span className="sm:hidden">DL</span>
+                      <Button asChild variant="outline" size="sm" className="flex-1 border-white/30 text-white hover:bg-white/10 text-xs sm:text-sm">
+                        <a href={getPublicUrl(document.storage_path)} download>
+                          <Download className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 text-gold" />
+                          <span className="hidden sm:inline">Download</span>
+                          <span className="sm:hidden">DL</span>
+                        </a>
                       </Button>
                     </div>
                   </CardContent>

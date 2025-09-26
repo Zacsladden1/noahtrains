@@ -1,9 +1,9 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import { Cinzel, Cormorant_Garamond } from 'next/font/google';
-import nextDynamic from 'next/dynamic';
-
-const ChunkErrorReload = nextDynamic(() => import('@/components/system/chunk-error-reload'), { ssr: false });
+import ChunkErrorReload from '@/components/system/chunk-error-reload';
+import DevSWCleaner from '@/components/system/dev-sw-cleaner';
+import IOSPWABanner from '@/components/system/ios-pwa-banner';
 
 // Avoid serving stale HTML that references old chunks
 export const dynamic = 'force-dynamic';
@@ -33,6 +33,7 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const isProd = process.env.NODE_ENV === 'production';
   return (
     <html lang="en" className={`dark ${cinzel.variable} ${cormorant.variable}`}>
       <head>
@@ -55,10 +56,11 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="black" />
         <meta name="apple-mobile-web-app-title" content="Noahhtrains" />
         <link rel="manifest" href="/site.webmanifest" />
-        {/* Early chunk error handler: registers before any client bundle executes */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(() => {
+        {isProd && (
+          // Early chunk error handler: registers before any client bundle executes (prod only)
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `(() => {
   const bust = () => {
     try { if ('caches' in window) { caches.keys().then(keys => keys.forEach(k => caches.delete(k))); } } catch {}
     const u = new URL(window.location.href);
@@ -69,21 +71,24 @@ export default function RootLayout({
     const target = e.target || {};
     const src = target.src || '';
     const msg = (e.message || '') + '';
-    if ((src && src.indexOf('/_next/static/chunks/') !== -1) || msg.indexOf('ChunkLoadError') !== -1) {
+    if ((src && src.indexOf('/_next/static/chunks/') !== -1) || msg.indexOf('ChunkLoadError') !== -1 || msg.indexOf("reading 'call'") !== -1) {
       bust();
     }
   }, true);
   window.addEventListener('unhandledrejection', function (e) {
     var msg = '' + (e.reason && (e.reason.message || e.reason))
-    if (msg.indexOf('ChunkLoadError') !== -1) bust();
+    if (msg.indexOf('ChunkLoadError') !== -1 || msg.indexOf("reading 'call'") !== -1) bust();
   });
 })();`,
-          }}
-        />
+            }}
+          />
+        )}
       </head>
       <body className="min-h-screen bg-background text-foreground">
         {children}
-        <ChunkErrorReload />
+        {!isProd && <DevSWCleaner />}
+        <IOSPWABanner />
+        {isProd && <ChunkErrorReload />}
       </body>
     </html>
   );

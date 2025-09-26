@@ -101,7 +101,7 @@ export default function MessagesPage() {
 
       // 4) Try to register push subscription for this client (optional)
       try {
-        if ('serviceWorker' in navigator && 'PushManager' in window && Notification.permission === 'granted') {
+        if (process.env.NODE_ENV === 'production' && 'serviceWorker' in navigator && 'PushManager' in window && Notification.permission === 'granted') {
           const reg = await navigator.serviceWorker.register('/sw.js');
           const sub = (await reg.pushManager.getSubscription()) || (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: (() => {
             const base64 = (window as any).VAPID_PUBLIC_KEY || '';

@@ -89,70 +89,82 @@ export function FoodLogDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className="bg-black border border-white/20 text-white">
-        <DialogHeader>
-          <DialogTitle>Add Food</DialogTitle>
-        </DialogHeader>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="md:col-span-2 flex justify-end">
-            <Button type="button" variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={lookupBarcode}>
-              <Scan className="w-4 h-4 mr-2" /> Lookup barcode
+      <DialogContent className="bg-black border border-white/20 text-white p-0 sm:p-6 rounded-none sm:rounded-xl w-screen sm:w-auto max-w-none sm:max-w-lg h-[100dvh] sm:h-auto overflow-y-auto">
+        <div className="min-h-full flex flex-col">
+          <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between sm:hidden">
+            <DialogTitle className="text-base">Add Food</DialogTitle>
+            <Button type="button" size="sm" variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={lookupBarcode}>
+              <Scan className="w-4 h-4 mr-2" /> Scan
             </Button>
           </div>
-          <div>
-            <Label htmlFor="food">Food name</Label>
-            <Input id="food" value={form.food_name} onChange={(e) => update('food_name', e.target.value)} className="mobile-input mt-1" placeholder="e.g., Chicken breast" />
-          </div>
-          <div>
-            <Label htmlFor="brand">Brand (optional)</Label>
-            <Input id="brand" value={form.brand ?? ''} onChange={(e) => update('brand', e.target.value)} className="mobile-input mt-1" placeholder="e.g., Generic" />
+          <div className="hidden sm:block">
+            <DialogHeader>
+              <DialogTitle>Add Food</DialogTitle>
+            </DialogHeader>
           </div>
 
-          <div>
-            <Label>Serving qty</Label>
-            <Input type="number" min={0} step="0.1" value={form.serving_qty ?? 1} onChange={(e) => update('serving_qty', Number(e.target.value))} className="mobile-input mt-1" />
-          </div>
-          <div>
-            <Label>Unit</Label>
-            <Input value={form.serving_unit ?? 'serving'} onChange={(e) => update('serving_unit', e.target.value)} className="mobile-input mt-1" />
+          <div className="px-4 sm:px-0 pb-24">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 sm:pt-0">
+              <div className="md:col-span-2 hidden sm:flex justify-end">
+                <Button type="button" variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={lookupBarcode}>
+                  <Scan className="w-4 h-4 mr-2" /> Lookup barcode
+                </Button>
+              </div>
+              <div>
+                <Label htmlFor="food" className="text-white/80 text-sm">Food name</Label>
+                <Input id="food" value={form.food_name} onChange={(e) => update('food_name', e.target.value)} className="mobile-input mt-1 h-12 text-base" placeholder="e.g., Chicken breast" />
+              </div>
+              <div>
+                <Label htmlFor="brand" className="text-white/80 text-sm">Brand (optional)</Label>
+                <Input id="brand" value={form.brand ?? ''} onChange={(e) => update('brand', e.target.value)} className="mobile-input mt-1 h-12 text-base" placeholder="e.g., Generic" />
+              </div>
+
+              <div>
+                <Label className="text-white/80 text-sm">Serving qty</Label>
+                <Input type="number" inputMode="decimal" min={0} step="0.1" value={form.serving_qty ?? 1} onChange={(e) => update('serving_qty', Number(e.target.value))} className="mobile-input mt-1 h-12 text-base" />
+              </div>
+              <div>
+                <Label className="text-white/80 text-sm">Unit</Label>
+                <Input value={form.serving_unit ?? 'serving'} onChange={(e) => update('serving_unit', e.target.value)} className="mobile-input mt-1 h-12 text-base" />
+              </div>
+
+              <div>
+                <Label className="text-white/80 text-sm">Calories</Label>
+                <Input type="number" inputMode="numeric" min={0} step="1" value={form.calories} onChange={(e) => update('calories', Number(e.target.value))} className="mobile-input mt-1 h-12 text-base" />
+              </div>
+              <div>
+                <Label className="text-white/80 text-sm">Protein (g)</Label>
+                <Input type="number" inputMode="decimal" min={0} step="0.1" value={form.protein_g} onChange={(e) => update('protein_g', Number(e.target.value))} className="mobile-input mt-1 h-12 text-base" />
+              </div>
+              <div>
+                <Label className="text-white/80 text-sm">Carbs (g)</Label>
+                <Input type="number" inputMode="decimal" min={0} step="0.1" value={form.carbs_g} onChange={(e) => update('carbs_g', Number(e.target.value))} className="mobile-input mt-1 h-12 text-base" />
+              </div>
+              <div>
+                <Label className="text-white/80 text-sm">Fat (g)</Label>
+                <Input type="number" inputMode="decimal" min={0} step="0.1" value={form.fat_g} onChange={(e) => update('fat_g', Number(e.target.value))} className="mobile-input mt-1 h-12 text-base" />
+              </div>
+
+              <div>
+                <Label className="text-white/80 text-sm">Fiber (g)</Label>
+                <Input type="number" inputMode="decimal" min={0} step="0.1" value={form.fiber_g ?? 0} onChange={(e) => update('fiber_g', Number(e.target.value))} className="mobile-input mt-1 h-12 text-base" />
+              </div>
+              <div>
+                <Label className="text-white/80 text-sm">Sugar (g)</Label>
+                <Input type="number" inputMode="decimal" min={0} step="0.1" value={form.sugar_g ?? 0} onChange={(e) => update('sugar_g', Number(e.target.value))} className="mobile-input mt-1 h-12 text-base" />
+              </div>
+              <div>
+                <Label className="text-white/80 text-sm">Sodium (mg)</Label>
+                <Input type="number" inputMode="numeric" min={0} step="1" value={form.sodium_mg ?? 0} onChange={(e) => update('sodium_mg', Number(e.target.value))} className="mobile-input mt-1 h-12 text-base" />
+              </div>
+            </div>
           </div>
 
-          <div>
-            <Label>Calories</Label>
-            <Input type="number" min={0} step="1" value={form.calories} onChange={(e) => update('calories', Number(e.target.value))} className="mobile-input mt-1" />
-          </div>
-          <div>
-            <Label>Protein (g)</Label>
-            <Input type="number" min={0} step="0.1" value={form.protein_g} onChange={(e) => update('protein_g', Number(e.target.value))} className="mobile-input mt-1" />
-          </div>
-          <div>
-            <Label>Carbs (g)</Label>
-            <Input type="number" min={0} step="0.1" value={form.carbs_g} onChange={(e) => update('carbs_g', Number(e.target.value))} className="mobile-input mt-1" />
-          </div>
-          <div>
-            <Label>Fat (g)</Label>
-            <Input type="number" min={0} step="0.1" value={form.fat_g} onChange={(e) => update('fat_g', Number(e.target.value))} className="mobile-input mt-1" />
-          </div>
-
-          <div>
-            <Label>Fiber (g)</Label>
-            <Input type="number" min={0} step="0.1" value={form.fiber_g ?? 0} onChange={(e) => update('fiber_g', Number(e.target.value))} className="mobile-input mt-1" />
-          </div>
-          <div>
-            <Label>Sugar (g)</Label>
-            <Input type="number" min={0} step="0.1" value={form.sugar_g ?? 0} onChange={(e) => update('sugar_g', Number(e.target.value))} className="mobile-input mt-1" />
-          </div>
-          <div>
-            <Label>Sodium (mg)</Label>
-            <Input type="number" min={0} step="1" value={form.sodium_mg ?? 0} onChange={(e) => update('sodium_mg', Number(e.target.value))} className="mobile-input mt-1" />
-          </div>
+          <DialogFooter className="sticky bottom-0 sm:mt-6 bg-black/80 backdrop-blur px-4 py-3 border-t border-white/10 grid grid-cols-2 gap-2">
+            <Button variant="outline" className="border-white/30 text-white hover:bg-white/10 w-full" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button className="bg-gold hover:bg-gold/90 text-black w-full" onClick={handleAdd}>Add Food</Button>
+          </DialogFooter>
         </div>
-
-        <DialogFooter className="mt-6">
-          <Button variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button className="bg-gold hover:bg-gold/90 text-black" onClick={handleAdd}>Add Food</Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -179,60 +191,66 @@ export function EditFoodLogDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className="bg-black border border-white/20 text-white">
-        <DialogHeader>
-          <DialogTitle>Edit Food</DialogTitle>
-        </DialogHeader>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <Label>Food name</Label>
-            <Input value={form.food_name} onChange={(e) => update('food_name', e.target.value)} className="mobile-input mt-1" />
+      <DialogContent className="bg-black border border-white/20 text-white p-0 sm:p-6 rounded-none sm:rounded-xl w-screen sm:w-auto max-w-none sm:max-w-lg h-[100dvh] sm:h-auto overflow-y-auto">
+        <div className="min-h-full flex flex-col">
+          <div className="px-4 py-3 border-b border-white/10 sm:px-0">
+            <DialogHeader>
+              <DialogTitle>Edit Food</DialogTitle>
+            </DialogHeader>
           </div>
-          <div>
-            <Label>Brand</Label>
-            <Input value={form.brand ?? ''} onChange={(e) => update('brand', e.target.value)} className="mobile-input mt-1" />
+          <div className="px-4 sm:px-0 pb-24">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 sm:pt-0">
+              <div>
+                <Label className="text-white/80 text-sm">Food name</Label>
+                <Input value={form.food_name} onChange={(e) => update('food_name', e.target.value)} className="mobile-input mt-1 h-12 text-base" />
+              </div>
+              <div>
+                <Label className="text-white/80 text-sm">Brand</Label>
+                <Input value={form.brand ?? ''} onChange={(e) => update('brand', e.target.value)} className="mobile-input mt-1 h-12 text-base" />
+              </div>
+              <div>
+                <Label className="text-white/80 text-sm">Serving qty</Label>
+                <Input type="number" inputMode="decimal" value={form.serving_qty ?? 1} onChange={(e) => update('serving_qty', Number(e.target.value))} className="mobile-input mt-1 h-12 text-base" />
+              </div>
+              <div>
+                <Label className="text-white/80 text-sm">Unit</Label>
+                <Input value={form.serving_unit ?? 'serving'} onChange={(e) => update('serving_unit', e.target.value)} className="mobile-input mt-1 h-12 text-base" />
+              </div>
+              <div>
+                <Label className="text-white/80 text-sm">Calories</Label>
+                <Input type="number" inputMode="numeric" value={form.calories} onChange={(e) => update('calories', Number(e.target.value))} className="mobile-input mt-1 h-12 text-base" />
+              </div>
+              <div>
+                <Label className="text-white/80 text-sm">Protein (g)</Label>
+                <Input type="number" inputMode="decimal" value={form.protein_g} onChange={(e) => update('protein_g', Number(e.target.value))} className="mobile-input mt-1 h-12 text-base" />
+              </div>
+              <div>
+                <Label className="text-white/80 text-sm">Carbs (g)</Label>
+                <Input type="number" inputMode="decimal" value={form.carbs_g} onChange={(e) => update('carbs_g', Number(e.target.value))} className="mobile-input mt-1 h-12 text-base" />
+              </div>
+              <div>
+                <Label className="text-white/80 text-sm">Fat (g)</Label>
+                <Input type="number" inputMode="decimal" value={form.fat_g} onChange={(e) => update('fat_g', Number(e.target.value))} className="mobile-input mt-1 h-12 text-base" />
+              </div>
+              <div>
+                <Label className="text-white/80 text-sm">Fiber (g)</Label>
+                <Input type="number" inputMode="decimal" value={form.fiber_g ?? 0} onChange={(e) => update('fiber_g', Number(e.target.value))} className="mobile-input mt-1 h-12 text-base" />
+              </div>
+              <div>
+                <Label className="text-white/80 text-sm">Sugar (g)</Label>
+                <Input type="number" inputMode="decimal" value={form.sugar_g ?? 0} onChange={(e) => update('sugar_g', Number(e.target.value))} className="mobile-input mt-1 h-12 text-base" />
+              </div>
+              <div>
+                <Label className="text-white/80 text-sm">Sodium (mg)</Label>
+                <Input type="number" inputMode="numeric" value={form.sodium_mg ?? 0} onChange={(e) => update('sodium_mg', Number(e.target.value))} className="mobile-input mt-1 h-12 text-base" />
+              </div>
+            </div>
           </div>
-          <div>
-            <Label>Serving qty</Label>
-            <Input type="number" value={form.serving_qty ?? 1} onChange={(e) => update('serving_qty', Number(e.target.value))} className="mobile-input mt-1" />
-          </div>
-          <div>
-            <Label>Unit</Label>
-            <Input value={form.serving_unit ?? 'serving'} onChange={(e) => update('serving_unit', e.target.value)} className="mobile-input mt-1" />
-          </div>
-          <div>
-            <Label>Calories</Label>
-            <Input type="number" value={form.calories} onChange={(e) => update('calories', Number(e.target.value))} className="mobile-input mt-1" />
-          </div>
-          <div>
-            <Label>Protein (g)</Label>
-            <Input type="number" value={form.protein_g} onChange={(e) => update('protein_g', Number(e.target.value))} className="mobile-input mt-1" />
-          </div>
-          <div>
-            <Label>Carbs (g)</Label>
-            <Input type="number" value={form.carbs_g} onChange={(e) => update('carbs_g', Number(e.target.value))} className="mobile-input mt-1" />
-          </div>
-          <div>
-            <Label>Fat (g)</Label>
-            <Input type="number" value={form.fat_g} onChange={(e) => update('fat_g', Number(e.target.value))} className="mobile-input mt-1" />
-          </div>
-          <div>
-            <Label>Fiber (g)</Label>
-            <Input type="number" value={form.fiber_g ?? 0} onChange={(e) => update('fiber_g', Number(e.target.value))} className="mobile-input mt-1" />
-          </div>
-          <div>
-            <Label>Sugar (g)</Label>
-            <Input type="number" value={form.sugar_g ?? 0} onChange={(e) => update('sugar_g', Number(e.target.value))} className="mobile-input mt-1" />
-          </div>
-          <div>
-            <Label>Sodium (mg)</Label>
-            <Input type="number" value={form.sodium_mg ?? 0} onChange={(e) => update('sodium_mg', Number(e.target.value))} className="mobile-input mt-1" />
-          </div>
+          <DialogFooter className="sticky bottom-0 sm:mt-6 bg-black/80 backdrop-blur px-4 py-3 border-t border-white/10 grid grid-cols-2 gap-2">
+            <Button variant="outline" className="border-white/30 text-white hover:bg-white/10 w-full" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button className="bg-gold hover:bg-gold/90 text-black w-full" onClick={save}>Save</Button>
+          </DialogFooter>
         </div>
-        <DialogFooter className="mt-6">
-          <Button variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button className="bg-gold hover:bg-gold/90 text-black" onClick={save}>Save</Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

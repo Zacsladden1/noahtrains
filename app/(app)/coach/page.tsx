@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, Bell, Dumbbell, ListFilter } from 'lucide-react';
+import { Users, Bell, Dumbbell, ListFilter, Video } from 'lucide-react';
 
 export default function CoachHome() {
   return (
@@ -41,6 +41,16 @@ export default function CoachHome() {
           <CardContent>
             <p className="text-white/60 text-sm mb-3">Create and assign daily exercise plans</p>
             <Link href="/coach/workouts"><Button variant="outline" className="w-full border-white/30 text-white hover:bg-white/10">Assign Workouts</Button></Link>
+          </CardContent>
+        </Card>
+
+        <Card className="mobile-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-white"><Video className="w-5 h-5 text-gold" /> Content Manager</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-white/60 text-sm mb-3">Upload and manage videos and documents</p>
+            <Link href="/coach/library"><Button variant="outline" className="w-full border-white/30 text-white hover:bg-white/10">Open Manager</Button></Link>
           </CardContent>
         </Card>
       </div>

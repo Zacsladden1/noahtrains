@@ -1,5 +1,3 @@
-const TerserPlugin = require('terser-webpack-plugin');
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: {
@@ -11,9 +9,6 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  // Disable SWC minifier which can cause issues with older Next.js versions
-  swcMinify: false,
-  // Use Terser for more stable minification
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
   },
@@ -45,9 +40,8 @@ const nextConfig = {
       },
     ];
   },
-  // Webpack configuration to fix chunk issues
+  // Webpack configuration
   webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
-    // Fix for chunk loading issues
     config.resolve.fallback = {
       ...config.resolve.fallback,
       fs: false,
@@ -57,47 +51,7 @@ const nextConfig = {
       util: false,
     };
 
-    // Ensure consistent chunk naming - simplified to prevent issues
-    config.optimization = {
-      ...config.optimization,
-      splitChunks: {
-        chunks: 'all',
-        cacheGroups: {
-          default: {
-            minChunks: 2,
-            priority: -20,
-            reuseExistingChunk: true,
-          },
-          vendors: {
-            test: /[\\/]node_modules[\\/]/,
-            name: 'vendors',
-            chunks: 'all',
-            priority: -10,
-            enforce: true,
-          },
-        },
-      },
-      // Use Terser for more stable minification
-      minimizer: [
-        new TerserPlugin({
-          terserOptions: {
-            compress: {
-              drop_console: process.env.NODE_ENV === 'production',
-              drop_debugger: true,
-            },
-            mangle: {
-              safari10: true,
-            },
-          },
-          parallel: true,
-        }),
-      ],
-    };
-
-    // Disable source maps in production to avoid warnings
-    if (process.env.NODE_ENV === 'production') {
-      config.devtool = false;
-    }
+    // Let Next.js manage optimizations/minification with SWC on latest versions
 
     return config;
   },

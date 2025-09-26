@@ -25,14 +25,14 @@ export default function DashboardPage() {
   const [weeklyWorkouts, setWeeklyWorkouts] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  // Target values (in a real app, these would come from user settings)
-  const targets = {
+  // Targets loaded from nutrition_targets, with sensible defaults
+  const [targets, setTargets] = useState({
     calories: 2200,
     protein: 150,
     carbs: 250,
     fat: 80,
     water: 3000,
-  };
+  });
 
   const testPush = async () => {
     try {
@@ -43,6 +43,10 @@ export default function DashboardPage() {
       const perm = await Notification.requestPermission();
       if (perm !== 'granted') {
         alert('Notifications not granted');
+        return;
+      }
+      if (process.env.NODE_ENV !== 'production') {
+        alert('Push requires production service worker. Skipping in dev.');
         return;
       }
       const reg = await navigator.serviceWorker.register('/sw.js');
@@ -74,9 +78,30 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (profile) {
+      loadTargets();
       fetchDashboardData();
     }
   }, [profile]);
+
+  const loadTargets = async () => {
+    if (!profile) return;
+    try {
+      const { data } = await supabase
+        .from('nutrition_targets')
+        .select('*')
+        .eq('user_id', profile.id)
+        .maybeSingle();
+      if (data) {
+        setTargets({
+          calories: data.calories ?? 2200,
+          protein: Number(data.protein_g ?? 150),
+          carbs: Number(data.carbs_g ?? 250),
+          fat: Number(data.fat_g ?? 80),
+          water: data.water_ml ?? 3000,
+        });
+      }
+    } catch {}
+  };
 
   const fetchDashboardData = async () => {
     if (!profile) return;
@@ -249,16 +274,16 @@ export default function DashboardPage() {
 
         {/* Macro Rings */}
         <div>
-          <MacroRings
-            calories={nutritionData.calories}
-            calorieTarget={targets.calories}
-            protein={nutritionData.protein}
-            proteinTarget={targets.protein}
-            carbs={nutritionData.carbs}
-            carbsTarget={targets.carbs}
-            fat={nutritionData.fat}
-            fatTarget={targets.fat}
-          />
+        <MacroRings
+          calories={nutritionData.calories}
+          calorieTarget={targets.calories}
+          protein={nutritionData.protein}
+          proteinTarget={targets.protein}
+          carbs={nutritionData.carbs}
+          carbsTarget={targets.carbs}
+          fat={nutritionData.fat}
+          fatTarget={targets.fat}
+        />
         </div>
       </div>
 

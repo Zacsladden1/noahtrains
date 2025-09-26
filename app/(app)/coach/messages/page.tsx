@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/use-auth';
@@ -21,6 +22,7 @@ export default function CoachMessagesPage() {
   const [threads, setThreads] = useState<Thread[]>([]);
   const [clients, setClients] = useState<Record<string, any>>({});
   const [q, setQ] = useState('');
+  const router = useRouter();
 
   useEffect(() => {
     if (!profile?.id) return;
@@ -69,7 +71,7 @@ export default function CoachMessagesPage() {
           const when = t.last_message_at ? new Date(t.last_message_at).toLocaleString() : new Date(t.created_at).toLocaleString();
           const unread = isUnread(t);
           return (
-            <Card key={t.id} className="mobile-card relative">
+            <Card key={t.id} className="mobile-card relative cursor-pointer" onClick={() => router.push(`/coach/messages/${t.id}`)}>
               {unread && (
                 <div className="absolute top-2 right-2 w-5 h-5 bg-red-600 rounded-full flex items-center justify-center text-white text-[10px] font-bold">1</div>
               )}
@@ -78,7 +80,7 @@ export default function CoachMessagesPage() {
               </CardHeader>
               <CardContent>
                 <p className="text-white/60 text-xs mb-2">Last activity: {when}</p>
-                <Link href={`/coach/messages/${t.id}`} className="text-gold text-sm underline">Open Thread</Link>
+                <span className="text-gold text-sm underline">Open Thread</span>
               </CardContent>
             </Card>
           );
