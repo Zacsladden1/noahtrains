@@ -95,13 +95,8 @@ export default function ProfilePage() {
     });
   }, [profile?.phone, profile?.age, profile?.current_weight_kg, profile?.goal_weight_kg]);
 
-  // If user already completed onboarding, don't show this page; redirect home
-  useEffect(() => {
-    if (profile && (profile as any).onboarding_complete) {
-      const target = (profile?.role === 'coach') ? '/coach' : '/dashboard';
-      router.replace(target);
-    }
-  }, [profile?.role, (profile as any)?.onboarding_complete, router]);
+  // Keep this page accessible for editing profile anytime. First-login routing to this page
+  // is handled in app/page.tsx based on onboarding_complete.
 
   return (
     <div className="mobile-padding mobile-spacing bg-black min-h-screen">
