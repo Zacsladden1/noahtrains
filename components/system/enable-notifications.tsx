@@ -52,8 +52,22 @@ export default function EnableNotificationsButton({ className, onRegistered }: P
         })()
       });
 
+      // Convert subscription to endpoint + base64url keys
+      const keyBuf = sub.getKey('p256dh');
+      const authBuf = sub.getKey('auth');
+      if (!keyBuf || !authBuf) { setError('Invalid subscription keys'); return; }
+      const toB64Url = (u8: Uint8Array) => btoa(String.fromCharCode(...u8)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      const payload = {
+        endpoint: sub.endpoint,
+        keys: {
+          p256dh: toB64Url(new Uint8Array(keyBuf)),
+          auth: toB64Url(new Uint8Array(authBuf)),
+        },
+        userId: user?.id,
+      };
+
       setStatus('Saving subscription…');
-      const resp = await fetch('/api/push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...sub, userId: user?.id }) });
+      const resp = await fetch('/api/push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const j = await resp.json().catch(()=>({ ok: false }));
       if (!resp.ok || j?.ok === false) throw new Error(j?.error || 'Failed to save');
 
