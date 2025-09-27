@@ -109,10 +109,32 @@ export function BarcodeScanner({ onDetected, onManualEntry }: Props) {
     }
   }, [pendingScan, onDetected]);
 
+  const cleanupCamera = useCallback(() => {
+    try {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    } catch {}
+    try {
+      if (codeReaderRef.current) codeReaderRef.current.reset();
+    } catch {}
+    try {
+      if (streamRef.current) {
+        // Turn off torch if supported by track constraints before stopping
+        const videoTrack = streamRef.current.getVideoTracks()[0];
+        if (videoTrack) {
+          try { (videoTrack as any).applyConstraints({ advanced: [{ torch: false }] }); } catch {}
+        }
+        streamRef.current.getTracks().forEach(t => t.stop());
+        streamRef.current = null;
+      }
+    } catch {}
+  }, []);
+
   const handleCancelScan = useCallback(() => {
     setPendingScan(null);
     setShowConfirmation(false);
-  }, []);
+    cleanupCamera();
+    setUseTorch(false);
+  }, [cleanupCamera]);
 
   return (
     <div className="space-y-3">

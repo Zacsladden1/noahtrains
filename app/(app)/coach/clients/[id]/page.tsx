@@ -5,9 +5,10 @@ import { useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Flame, Egg, Wheat, Droplet, Droplets, Coffee, Sun, Sunset, Apple, CircleDot, ChevronDown } from 'lucide-react';
+import { Flame, Egg, Wheat, Droplet, Droplets, Coffee, Sun, Sunset, Apple, CircleDot, ChevronDown, Phone, ChevronLeft, ChevronRight, MessageCircle } from 'lucide-react';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { supabase } from '@/lib/supabase';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 export default function CoachClientDetailPage() {
   const params = useParams();
@@ -17,11 +18,14 @@ export default function CoachClientDetailPage() {
   const [recent, setRecent] = useState<any[]>([]);
   const [totals, setTotals] = useState({ calories: 0, protein: 0, carbs: 0 });
   const [saving, setSaving] = useState(false);
+  const [upcomingWorkout, setUpcomingWorkout] = useState<any | null>(null);
+  const [workoutsForDay, setWorkoutsForDay] = useState<any[]>([]);
+  const [selectedDate, setSelectedDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
 
   useEffect(() => {
     if (!clientId) return;
     (async () => {
-      const { data: p } = await supabase.from('profiles').select('id, full_name, email').eq('id', clientId).maybeSingle();
+      const { data: p } = await supabase.from('profiles').select('id, full_name, email, avatar_url, age, current_weight_kg, goal_weight_kg, phone, created_at').eq('id', clientId).maybeSingle();
       setClient(p);
       const { data: t } = await supabase.from('nutrition_targets').select('*').eq('user_id', clientId).maybeSingle();
       if (t) setTargets({
@@ -36,7 +40,7 @@ export default function CoachClientDetailPage() {
         .from('nutrition_logs')
         .select('*')
         .eq('user_id', clientId)
-        .eq('date', today)
+        .eq('date', selectedDate)
         .order('created_at', { ascending: false })
         .limit(20);
       const list = meals || [];
@@ -46,8 +50,28 @@ export default function CoachClientDetailPage() {
         protein: Math.round(list.reduce((a: number, x: any) => a + (x.protein_g || 0), 0)),
         carbs: Math.round(list.reduce((a: number, x: any) => a + (x.carbs_g || 0), 0)),
       });
+      const { data: uw } = await supabase
+        .from('workouts')
+        .select('id, name, status, created_at')
+        .eq('user_id', clientId)
+        .in('status', ['planned', 'in_progress'])
+        .order('created_at', { ascending: false })
+        .limit(1);
+      setUpcomingWorkout((uw && uw[0]) || null);
+
+      // Workouts for selected day (completed or any status that day)
+      const from = `${selectedDate}T00:00:00`;
+      const to = `${selectedDate}T23:59:59`;
+      const { data: wday } = await supabase
+        .from('workouts')
+        .select('id, name, status, created_at, completed_at')
+        .eq('user_id', clientId)
+        .gte('created_at', from)
+        .lte('created_at', to)
+        .order('created_at', { ascending: true });
+      setWorkoutsForDay(wday || []);
     })();
-  }, [clientId]);
+  }, [clientId, selectedDate]);
 
   // Realtime updates for today's meals
   useEffect(() => {
@@ -56,7 +80,7 @@ export default function CoachClientDetailPage() {
       .channel(`coach-client-meals-${clientId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'nutrition_logs', filter: `user_id=eq.${clientId}` }, async () => {
         try {
-          const today = new Date().toISOString().split('T')[0];
+          const today = selectedDate;
           // Refetch latest list to keep ordering consistent
           const { data: meals } = await supabase
             .from('nutrition_logs')
@@ -76,7 +100,7 @@ export default function CoachClientDetailPage() {
       })
       .subscribe();
     return () => { try { supabase.removeChannel(channel); } catch {} };
-  }, [clientId]);
+  }, [clientId, selectedDate]);
 
   const saveTargets = async () => {
     setSaving(true);
@@ -118,10 +142,63 @@ export default function CoachClientDetailPage() {
 
   return (
     <div className="mobile-padding mobile-spacing bg-black min-h-screen">
-      <h1 className="text-xl sm:text-2xl md:text-3xl font-heading text-white mb-3">{client?.full_name || 'Client'}</h1>
+      <div className="flex items-center gap-3 mb-3">
+        <Avatar className="w-9 h-9">
+          {client?.avatar_url ? <AvatarImage src={client.avatar_url} alt="Avatar" /> : null}
+          <AvatarFallback className="bg-gold text-black">{(client?.full_name || client?.email || 'C').slice(0,1)}</AvatarFallback>
+        </Avatar>
+        <div>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-heading text-white">{client?.full_name || 'Client'}</h1>
+          <p className="text-white/60 text-xs">Age {client?.age ?? '—'} · {client?.current_weight_kg ? `${client.current_weight_kg}kg` : '—'} → {client?.goal_weight_kg ? `${client.goal_weight_kg}kg` : '—'}</p>
+        </div>
+      </div>
 
       <div className="flex gap-2 mb-3">
-        <Button variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={openThread}>Message client</Button>
+        <Button
+          variant="outline"
+          size="icon"
+          aria-label="Message client"
+          className="border-white/30 text-white hover:bg-white/10 w-10 h-10 rounded-full"
+          onClick={openThread}
+        >
+          <MessageCircle className="w-5 h-5 text-gold" />
+        </Button>
+        {client?.phone && (
+          <a href={`tel:${client.phone}`} className="inline-flex">
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label="Call client"
+              className="border-white/30 text-white hover:bg-white/10 w-10 h-10 rounded-full"
+            >
+              <Phone className="w-5 h-5 text-gold" />
+            </Button>
+          </a>
+        )}
+      </div>
+
+      {/* Day selector */}
+      <div className="flex items-center gap-2 mb-3">
+        <Button variant="outline" size="sm" className="border-white/30 text-white hover:bg-white/10" onClick={()=>{
+          const d = new Date(selectedDate);
+          d.setDate(d.getDate()-1);
+          setSelectedDate(d.toISOString().split('T')[0]);
+        }}>
+          <ChevronLeft className="w-4 h-4 mr-1" /> Prev
+        </Button>
+        <div className="text-white/80 text-sm px-2 py-1 rounded border border-white/10">
+          {new Date(selectedDate).toLocaleDateString()}
+        </div>
+        <Button variant="outline" size="sm" className="border-white/30 text-white hover:bg-white/10" onClick={()=>{
+          const todayStr = new Date().toISOString().split('T')[0];
+          const d = new Date(selectedDate);
+          d.setDate(d.getDate()+1);
+          const next = d.toISOString().split('T')[0];
+          if (next > todayStr) return; // don't go into future
+          setSelectedDate(next);
+        }}>
+          Next <ChevronRight className="w-4 h-4 ml-1" />
+        </Button>
       </div>
 
       <Card className="mobile-card mb-4">
@@ -176,6 +253,40 @@ export default function CoachClientDetailPage() {
           </div>
             </CollapsibleContent>
           </Collapsible>
+        </CardContent>
+      </Card>
+
+      {upcomingWorkout && (
+        <Card className="mobile-card mb-4">
+          <CardHeader>
+            <CardTitle className="text-white text-base">Upcoming Workout</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-white/80 text-sm flex items-center justify-between">
+              <span className="truncate max-w-[240px]">{upcomingWorkout.name || 'Workout'}</span>
+              <span className="text-white/60 capitalize">{upcomingWorkout.status.replace('_',' ')}</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card className="mobile-card mb-4">
+        <CardHeader>
+          <CardTitle className="text-white text-base">Workouts on {new Date(selectedDate).toLocaleDateString()}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {workoutsForDay.length === 0 ? (
+            <p className="text-white/60 text-sm">No workouts for this day</p>
+          ) : (
+            <div className="space-y-2">
+              {workoutsForDay.map((w)=> (
+                <div key={w.id} className="flex items-center justify-between p-2 bg-white/10 rounded">
+                  <div className="text-white text-sm truncate max-w-[220px]">{w.name || 'Workout'}</div>
+                  <div className="text-white/60 text-xs capitalize">{(w.status || '').replace('_',' ')}</div>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 

@@ -150,7 +150,9 @@ export default function HomePage() {
 
   useEffect(() => {
     if (user && !loading && mounted) {
-      const target = profile?.role === 'coach' ? '/coach' : '/dashboard';
+      // If onboarding not complete, send to settings
+      const needsOnboarding = (profile as any)?.onboarding_complete === false || (profile as any)?.onboarding_complete == null;
+      const target = needsOnboarding ? '/profile' : (profile?.role === 'coach' ? '/coach' : '/dashboard');
       const url = `${target}?v=${Date.now()}`;
       if (typeof window !== 'undefined') {
         window.location.replace(url);

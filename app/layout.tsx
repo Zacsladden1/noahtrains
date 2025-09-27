@@ -4,6 +4,7 @@ import { Cinzel, Cormorant_Garamond } from 'next/font/google';
 import ChunkErrorReload from '@/components/system/chunk-error-reload';
 import DevSWCleaner from '@/components/system/dev-sw-cleaner';
 import IOSPWABanner from '@/components/system/ios-pwa-banner';
+import SWUpdater from '@/components/system/sw-updater';
 
 // Avoid serving stale HTML that references old chunks
 export const dynamic = 'force-dynamic';
@@ -53,9 +54,10 @@ export default function RootLayout({
           href="/no%20backround%20high%20quality%20logo%202.png"
         />
         <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black" />
         <meta name="apple-mobile-web-app-title" content="Noahhtrains" />
-        <link rel="manifest" href="/site.webmanifest" />
+        <link rel="manifest" href={`/site.webmanifest?v=${Date.now()}`} />
         {isProd && (
           // Early chunk error handler: registers before any client bundle executes (prod only)
           <script
@@ -89,6 +91,7 @@ export default function RootLayout({
         {!isProd && <DevSWCleaner />}
         <IOSPWABanner />
         {isProd && <ChunkErrorReload />}
+        {isProd && <SWUpdater />}
       </body>
     </html>
   );

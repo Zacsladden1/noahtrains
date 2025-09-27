@@ -12,7 +12,7 @@ export default function CoachClientsPage() {
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from('profiles').select('id, full_name, email, role, created_at').eq('role', 'client').order('created_at', { ascending: false }).limit(100);
+      const { data } = await supabase.from('profiles').select('id, full_name, email, role, created_at, avatar_url, age, current_weight_kg, goal_weight_kg').eq('role', 'client').order('created_at', { ascending: false }).limit(100);
       setClients(data || []);
     })();
   }, []);
@@ -27,7 +27,20 @@ export default function CoachClientsPage() {
         {filtered.map((c) => (
           <Card key={c.id} className="mobile-card">
             <CardHeader>
-              <CardTitle className="text-white text-base">{c.full_name || c.email}</CardTitle>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full overflow-hidden bg-white/10 flex items-center justify-center text-xs">
+                  {c.avatar_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={c.avatar_url} alt="avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-white/80">{(c.full_name || c.email || 'C').slice(0,1)}</span>
+                  )}
+                </div>
+                <div>
+                  <CardTitle className="text-white text-base">{c.full_name || c.email}</CardTitle>
+                  <p className="text-white/60 text-xs mt-0.5">Age {c.age ?? '—'} · {c.current_weight_kg ? `${c.current_weight_kg}kg` : '—'} → {c.goal_weight_kg ? `${c.goal_weight_kg}kg` : '—'}</p>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               <p className="text-white/60 text-xs mb-2">Joined {new Date(c.created_at).toLocaleDateString()}</p>

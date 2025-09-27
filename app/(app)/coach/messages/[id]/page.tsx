@@ -1,13 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Send, Paperclip, Image as ImageIcon, Phone, Video, MoreVertical } from 'lucide-react';
-import { useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/use-auth';
 
@@ -20,13 +19,14 @@ export default function CoachThreadPage() {
   const [text, setText] = useState('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!threadId) return;
     (async () => {
       const { data: th } = await supabase.from('message_threads').select('client_id').eq('id', threadId).maybeSingle();
       if (th?.client_id) {
-        const { data: cp } = await supabase.from('profiles').select('id, full_name, email').eq('id', th.client_id).maybeSingle();
+        const { data: cp } = await supabase.from('profiles').select('id, full_name, email, avatar_url').eq('id', th.client_id).maybeSingle();
         setClient(cp);
       }
       const { data: msgs } = await supabase
@@ -35,6 +35,9 @@ export default function CoachThreadPage() {
         .eq('thread_id', threadId)
         .order('created_at', { ascending: true });
       setMessages(msgs || []);
+      requestAnimationFrame(() => {
+        try { if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight; } catch {}
+      });
     })();
   }, [threadId]);
 
@@ -126,33 +129,33 @@ export default function CoachThreadPage() {
   };
 
   return (
-    <div className="mobile-padding mobile-spacing max-w-4xl mx-auto bg-black min-h-screen">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2 sm:space-x-3">
-          <Avatar className="w-8 h-8 sm:w-10 sm:h-10">
-            <AvatarFallback className="bg-gold text-black">{(client?.full_name || client?.email || 'C').slice(0,1)}</AvatarFallback>
-          </Avatar>
-          <div>
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-heading text-white">{client?.full_name || client?.email || 'Client'}</h1>
-            <div className="flex items-center space-x-2">
-              <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-gold rounded-full"></div>
-              <span className="text-xs sm:text-sm text-white/60">Online</span>
+    <div className="bg-black min-h-[100dvh] flex flex-col">
+      {/* Top bar */}
+      <div className="px-3 py-3 sm:px-4 sm:py-4 border-b border-white/10">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2 sm:space-x-3">
+            <Avatar className="w-8 h-8 sm:w-10 sm:h-10">
+              {client?.avatar_url ? (
+                <AvatarImage src={client.avatar_url} alt={client.full_name || 'Client'} />
+              ) : null}
+              <AvatarFallback className="bg-gold text-black">{(client?.full_name || client?.email || 'C').slice(0,1)}</AvatarFallback>
+            </Avatar>
+            <div>
+              <h1 className="text-white text-base sm:text-lg font-heading">{client?.full_name || client?.email || 'Client'}</h1>
+              <div className="flex items-center space-x-2">
+                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-gold rounded-full"></div>
+                <span className="text-xs sm:text-sm text-white/60">Online</span>
+              </div>
             </div>
           </div>
-        </div>
-        <div className="hidden sm:flex items-center space-x-2">
-          <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 w-8 h-8 sm:w-10 sm:h-10"><MoreVertical className="w-4 h-4 text-white" /></Button>
+          <div className="hidden sm:flex items-center space-x-2">
+            <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 w-8 h-8 sm:w-10 sm:h-10"><MoreVertical className="w-4 h-4 text-white" /></Button>
+          </div>
         </div>
       </div>
 
-      {/* Chat */}
-      <Card className="mobile-card">
-        <CardHeader className="border-b border-white/20 p-3 sm:p-6">
-          <CardTitle className="text-white text-base">Conversation</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="h-64 sm:h-96 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4">
+      {/* Messages list fills available height */}
+      <div ref={listRef} className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4 pb-28">
             {messages.length === 0 ? (
               <div className="text-center py-12">
                 <span className="text-white/60 text-sm sm:text-base">No messages yet</span>
@@ -166,6 +169,9 @@ export default function CoachThreadPage() {
                     <div className={`flex items-end space-x-1 sm:space-x-2 max-w-xs lg:max-w-md ${isOwn ? 'flex-row-reverse space-x-reverse' : ''}`}>
                       {!isOwn && (
                         <Avatar className="w-5 h-5 sm:w-6 sm:h-6">
+                          {client?.avatar_url ? (
+                            <AvatarImage src={client.avatar_url} alt={client.full_name || 'Client'} />
+                          ) : null}
                           <AvatarFallback className="text-xs bg-gold text-black">{(client?.full_name || client?.email || 'C').slice(0,1)}</AvatarFallback>
                         </Avatar>
                       )}
@@ -214,30 +220,29 @@ export default function CoachThreadPage() {
                 );
               })
             )}
+      </div>
+
+      {/* Composer */}
+      <div className="border-t border-white/20 p-3 sm:p-4 bg-black sticky bottom-0 pb-[max(0px,env(safe-area-inset-bottom))]">
+        <div className="flex items-center space-x-1 sm:space-x-2">
+          <input ref={fileInputRef} type="file" className="hidden" onChange={(e)=>{ const f=e.target.files?.[0]; if(f) uploadAttachment(f); e.currentTarget.value=''; }} />
+          <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={(e)=>{ const f=e.target.files?.[0]; if(f) uploadAttachment(f); e.currentTarget.value=''; }} />
+          <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 w-8 h-8 sm:w-10 sm:h-10" onClick={()=>fileInputRef.current?.click()}><Paperclip className="w-4 h-4 text-gold" /></Button>
+          <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 w-8 h-8 sm:w-10 sm:h-10" onClick={()=>imageInputRef.current?.click()}><ImageIcon className="w-4 h-4 text-gold" /></Button>
+          <div className="flex-1">
+            <Input
+              placeholder="Type a message..."
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
+              className="mobile-input border-0 bg-white/10 text-white placeholder:text-white/50 focus-visible:ring-0 focus-visible:ring-offset-0"
+            />
           </div>
-        </CardContent>
-        {/* Input */}
-        <div className="border-t border-white/20 p-3 sm:p-4">
-          <div className="flex items-center space-x-1 sm:space-x-2">
-            <input ref={fileInputRef} type="file" className="hidden" onChange={(e)=>{ const f=e.target.files?.[0]; if(f) uploadAttachment(f); e.currentTarget.value=''; }} />
-            <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={(e)=>{ const f=e.target.files?.[0]; if(f) uploadAttachment(f); e.currentTarget.value=''; }} />
-            <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 w-8 h-8 sm:w-10 sm:h-10" onClick={()=>fileInputRef.current?.click()}><Paperclip className="w-4 h-4 text-gold" /></Button>
-            <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 w-8 h-8 sm:w-10 sm:h-10" onClick={()=>imageInputRef.current?.click()}><ImageIcon className="w-4 h-4 text-gold" /></Button>
-            <div className="flex-1">
-              <Input
-                placeholder="Type a message..."
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
-                className="mobile-input border-0 bg-white/10 text-white placeholder:text-white/50 focus-visible:ring-0 focus-visible:ring-offset-0"
-              />
-            </div>
-            <Button onClick={send} disabled={!text.trim()} className="bg-gold hover:bg-gold/90 text-black w-8 h-8 sm:w-10 sm:h-10 p-0">
-              <Send className="w-4 h-4 text-black" />
-            </Button>
-          </div>
+          <Button onClick={send} disabled={!text.trim()} className="bg-gold hover:bg-gold/90 text-black w-8 h-8 sm:w-10 sm:h-10 p-0">
+            <Send className="w-4 h-4 text-black" />
+          </Button>
         </div>
-      </Card>
+      </div>
     </div>
   );
 }

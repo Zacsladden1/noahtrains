@@ -22,6 +22,7 @@ export default function CoachNotificationsPage() {
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [lastError, setLastError] = useState<string | null>(null);
+  const [myDeviceCount, setMyDeviceCount] = useState<number | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -29,6 +30,23 @@ export default function CoachNotificationsPage() {
       setClients(data || []);
     })();
   }, []);
+
+  useEffect(() => {
+    refreshMyDevices();
+  }, [profile?.id]);
+
+  const refreshMyDevices = async () => {
+    if (!profile?.id) return;
+    try {
+      const { count } = await supabase
+        .from('push_subscriptions')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', profile.id);
+      setMyDeviceCount(count || 0);
+    } catch {
+      setMyDeviceCount(null);
+    }
+  };
 
   const toggleSelect = (id: string) => {
     setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -54,7 +72,7 @@ export default function CoachNotificationsPage() {
       if (sub && profile?.id) {
         await fetch('/api/push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...sub, userId: profile.id }) });
       }
-      alert('Notifications enabled on this device.');
+      await refreshMyDevices();
     } catch (e) {
       console.error(e);
       alert('Failed to enable notifications');
@@ -114,10 +132,12 @@ export default function CoachNotificationsPage() {
             ))}
           </div>
           <Input value={message} onChange={(e)=>setMessage(e.target.value)} placeholder="Type a notification..." className="mobile-input" />
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 items-center">
             <Button onClick={send} disabled={sending} className="bg-gold hover:bg-gold/90 text-black">Send</Button>
-            <EnableNotificationsButton className="border-white/30 text-white hover:bg-white/10 px-4 py-2 rounded-md border" />
+            <Button variant="outline" onClick={requestPermission} className="border-white/30 text-white hover:bg-white/10">Register this device</Button>
             <Button variant="outline" onClick={sendTestToMe} disabled={sending} className="border-white/30 text-white hover:bg-white/10">Send test to me</Button>
+            <span className="text-white/70 text-sm ml-auto">Your devices: {myDeviceCount ?? '—'}</span>
+            <Button variant="outline" size="sm" onClick={refreshMyDevices} className="border-white/30 text-white hover:bg-white/10">Refresh</Button>
           </div>
           {lastError && (
             <p className="text-xs text-destructive">{lastError}</p>

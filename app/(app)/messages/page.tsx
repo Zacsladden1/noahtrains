@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
   Send, 
   Paperclip, 
@@ -16,7 +16,6 @@ import {
   MoreVertical,
   Image as ImageIcon
 } from 'lucide-react';
-import { useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function MessagesPage() {
@@ -27,8 +26,10 @@ export default function MessagesPage() {
   const [loading, setLoading] = useState(true);
   const [threadId, setThreadId] = useState<string | null>(null);
   const [coachId, setCoachId] = useState<string | null>(null);
+  const [coachProfile, setCoachProfile] = useState<any | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (profile?.role === 'coach') {
@@ -64,6 +65,16 @@ export default function MessagesPage() {
       }
 
       setCoachId(coach_id);
+      if (coach_id) {
+        try {
+          const { data: coach } = await supabase
+            .from('profiles')
+            .select('id, full_name, email, avatar_url')
+            .eq('id', coach_id)
+            .maybeSingle();
+          setCoachProfile(coach || null);
+        } catch {}
+      }
 
       // 2) Find or create thread between this client and coach
       let currentThreadId: string | null = null;
@@ -136,6 +147,10 @@ export default function MessagesPage() {
         .eq('thread_id', tid)
         .order('created_at', { ascending: true });
       setMessages(data || []);
+      // Scroll to bottom after initial fetch
+      requestAnimationFrame(() => {
+        try { if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight; } catch {}
+      });
     } catch (e) {
       console.error('Error fetching messages:', e);
     }
@@ -195,43 +210,35 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className="mobile-padding mobile-spacing max-w-4xl mx-auto bg-black min-h-screen">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-heading text-white">Messages</h1>
-          <p className="text-white/60 text-xs sm:text-sm">Chat with your coach</p>
+    <div className="bg-black min-h-[100dvh] flex flex-col">
+      {/* Top bar */}
+      <div className="px-3 py-3 sm:px-4 sm:py-4 border-b border-white/10">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2 sm:space-x-3">
+            <Avatar className="w-8 h-8 sm:w-10 sm:h-10">
+              {coachProfile?.avatar_url ? (
+                <AvatarImage src={coachProfile.avatar_url} alt={coachProfile.full_name || 'Coach'} />
+              ) : null}
+              <AvatarFallback className="bg-gold text-black">{(coachProfile?.full_name || coachProfile?.email || 'C').slice(0,1)}</AvatarFallback>
+            </Avatar>
+            <div>
+              <h1 className="text-white text-base sm:text-lg font-heading">Messages</h1>
+              <div className="flex items-center space-x-2">
+                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-gold rounded-full"></div>
+                <span className="text-xs sm:text-sm text-white/60">Online</span>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center space-x-1 sm:space-x-2">
+            <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 w-8 h-8 sm:w-10 sm:h-10">
+              <MoreVertical className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Chat Interface */}
-      <Card className="mobile-card">
-        {/* Chat Header */}
-        <CardHeader className="border-b border-white/20 p-3 sm:p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2 sm:space-x-3">
-              <Avatar className="w-8 h-8 sm:w-10 sm:h-10">
-                <AvatarFallback className="bg-gold text-black">C</AvatarFallback>
-              </Avatar>
-              <div>
-                <CardTitle className="text-sm sm:text-lg text-white">Coach</CardTitle>
-                <div className="flex items-center space-x-2">
-                  <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-gold rounded-full"></div>
-                  <span className="text-xs sm:text-sm text-white/60">Online</span>
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center space-x-1 sm:space-x-2">
-              <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 w-8 h-8 sm:w-10 sm:h-10">
-                <MoreVertical className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-
-        {/* Messages */}
-        <CardContent className="p-0">
-          <div className="h-64 sm:h-96 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4">
+      {/* Messages list fills available height */}
+      <div ref={listRef} className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4 pb-28">
             {messages.length === 0 ? (
               <div className="text-center py-12">
                 <MessageCircle className="w-8 h-8 sm:w-12 sm:h-12 text-gold mx-auto mb-4 opacity-50" />
@@ -250,7 +257,10 @@ export default function MessagesPage() {
                     <div className={`flex items-end space-x-1 sm:space-x-2 max-w-xs lg:max-w-md ${isOwn ? 'flex-row-reverse space-x-reverse' : ''}`}>
                       {!isOwn && (
                         <Avatar className="w-5 h-5 sm:w-6 sm:h-6">
-                          <AvatarFallback className="text-xs bg-gold text-black">C</AvatarFallback>
+                          {coachProfile?.avatar_url ? (
+                            <AvatarImage src={coachProfile.avatar_url} alt={coachProfile.full_name || 'Coach'} />
+                          ) : null}
+                          <AvatarFallback className="text-xs bg-gold text-black">{(coachProfile?.full_name || coachProfile?.email || 'C').slice(0,1)}</AvatarFallback>
                         </Avatar>
                       )}
                       <div
@@ -302,39 +312,37 @@ export default function MessagesPage() {
                 );
               })
             )}
-          </div>
-        </CardContent>
+      </div>
 
-        {/* Message Input */}
-        <div className="border-t border-white/20 p-3 sm:p-4">
-          <div className="flex items-center space-x-1 sm:space-x-2">
-            <input ref={fileInputRef} type="file" className="hidden" onChange={(e)=>{ const f=e.target.files?.[0]; if(f) uploadAttachment(f); e.currentTarget.value=''; }} />
-            <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={(e)=>{ const f=e.target.files?.[0]; if(f) uploadAttachment(f); e.currentTarget.value=''; }} />
-            <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 w-8 h-8 sm:w-10 sm:h-10" onClick={()=>fileInputRef.current?.click()}>
-              <Paperclip className="w-3 h-3 sm:w-4 sm:h-4 text-gold" />
-            </Button>
-            <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 w-8 h-8 sm:w-10 sm:h-10" onClick={()=>imageInputRef.current?.click()}>
-              <ImageIcon className="w-3 h-3 sm:w-4 sm:h-4 text-gold" />
-            </Button>
-            <div className="flex-1">
-              <Input
-                placeholder="Type a message..."
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                onKeyDown={handleKeyPress}
-                className="mobile-input border-0 bg-white/10 text-white placeholder:text-white/50 focus-visible:ring-0 focus-visible:ring-offset-0"
-              />
-            </div>
-            <Button 
-              onClick={sendMessage}
-              disabled={!newMessage.trim()}
-              className="bg-gold hover:bg-gold/90 text-black w-8 h-8 sm:w-10 sm:h-10 p-0"
-            >
-              <Send className="w-3 h-3 sm:w-4 sm:h-4 text-black" />
-            </Button>
+      {/* Composer - sits above the app footer, with safe-area padding */}
+      <div className="border-t border-white/20 p-3 sm:p-4 bg-black sticky bottom-0 pb-[max(0px,env(safe-area-inset-bottom))]">
+        <div className="flex items-center space-x-1 sm:space-x-2">
+          <input ref={fileInputRef} type="file" className="hidden" onChange={(e)=>{ const f=e.target.files?.[0]; if(f) uploadAttachment(f); e.currentTarget.value=''; }} />
+          <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={(e)=>{ const f=e.target.files?.[0]; if(f) uploadAttachment(f); e.currentTarget.value=''; }} />
+          <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 w-8 h-8 sm:w-10 sm:h-10" onClick={()=>fileInputRef.current?.click()}>
+            <Paperclip className="w-3 h-3 sm:w-4 sm:h-4 text-gold" />
+          </Button>
+          <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 w-8 h-8 sm:w-10 sm:h-10" onClick={()=>imageInputRef.current?.click()}>
+            <ImageIcon className="w-3 h-3 sm:w-4 sm:h-4 text-gold" />
+          </Button>
+          <div className="flex-1">
+            <Input
+              placeholder="Type a message..."
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              onKeyDown={handleKeyPress}
+              className="mobile-input border-0 bg-white/10 text-white placeholder:text-white/50 focus-visible:ring-0 focus-visible:ring-offset-0"
+            />
           </div>
+          <Button 
+            onClick={sendMessage}
+            disabled={!newMessage.trim()}
+            className="bg-gold hover:bg-gold/90 text-black w-8 h-8 sm:w-10 sm:h-10 p-0"
+          >
+            <Send className="w-3 h-3 sm:w-4 sm:h-4 text-black" />
+          </Button>
         </div>
-      </Card>
+      </div>
     </div>
   );
 }
