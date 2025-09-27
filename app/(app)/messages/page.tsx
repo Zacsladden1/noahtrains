@@ -19,7 +19,8 @@ import { useRouter } from 'next/navigation';
 export default function MessagesPage() {
   const { profile } = useAuth();
   const router = useRouter();
-  const [messages, setMessages] = useState<any[]>([]);
+  const [coachMsgs, setCoachMsgs] = useState<any[]>([]);
+  const [communityMsgs, setCommunityMsgs] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [threadId, setThreadId] = useState<string | null>(null);
@@ -29,6 +30,19 @@ export default function MessagesPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
+
+  // Ensure unique messages and stable order
+  const dedupeById = (items: any[]) => {
+    const seen = new Set<string>();
+    const out: any[] = [];
+    for (const it of items || []) {
+      const id = it?.id;
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      out.push(it);
+    }
+    return out.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  };
 
   useEffect(() => {
     if (profile?.role === 'coach') {
@@ -108,7 +122,11 @@ export default function MessagesPage() {
       supabase
         .channel(`thread-${currentThreadId}`)
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `thread_id=eq.${currentThreadId}` }, (payload) => {
-          setMessages((prev) => [...prev, payload.new]);
+          setCoachMsgs((prev) => {
+            const arr = Array.isArray(prev) ? prev : [];
+            if (arr.some((m:any)=>m.id===payload.new.id)) return arr;
+            return dedupeById([...arr, payload.new]);
+          });
         })
         .subscribe();
 
@@ -140,15 +158,15 @@ export default function MessagesPage() {
 
   // Load messages when switching tabs
   useEffect(() => {
-    (async () => {
-      if (tab === 'community') {
-        // Ensure the global community thread exists (server creates if missing)
+    // Fetch only the active tab to avoid flicker
+    if (tab === 'community') {
+      (async () => {
         try { await fetch('/api/group/init', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: profile?.id }) }); } catch {}
         await fetchGroupMessages();
-      } else if (tab === 'coach' && threadId) {
-        await fetchMessages(threadId);
-      }
-    })();
+      })();
+    } else if (tab === 'coach' && threadId) {
+      fetchMessages(threadId);
+    }
   }, [tab, threadId]);
 
   const fetchMessages = async (tid: string) => {
@@ -158,7 +176,7 @@ export default function MessagesPage() {
         .select('*, attachments:attachments(id, storage_path, file_name, mime_type, file_size)')
         .eq('thread_id', tid)
         .order('created_at', { ascending: true });
-      setMessages(data || []);
+      setCoachMsgs(dedupeById(data || []));
       // Scroll to bottom after initial fetch
       requestAnimationFrame(() => {
         try { if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight; } catch {}
@@ -171,7 +189,7 @@ export default function MessagesPage() {
   const fetchGroupMessages = async () => {
     try {
       const { data: g } = await supabase.from('group_threads').select('id').eq('is_global', true).maybeSingle();
-      if (!g?.id) { setMessages([]); return; }
+      if (!g?.id) { setCommunityMsgs([]); return; }
       // Ensure current user is a member of the global thread (idempotent)
       try {
         if (profile?.id) {
@@ -183,7 +201,7 @@ export default function MessagesPage() {
         .select('id, sender_id, body, created_at, sender:profiles(id, full_name, email, avatar_url)')
         .eq('thread_id', g.id)
         .order('created_at', { ascending: true });
-      setMessages(data || []);
+      setCommunityMsgs(dedupeById(data || []));
       requestAnimationFrame(() => {
         try { if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight; } catch {}
       });
@@ -218,10 +236,35 @@ export default function MessagesPage() {
     await fetchMessages(threadId);
   };
 
+  const sendCommunityMessage = async () => {
+    try {
+      const text = newMessage.trim();
+      if (!text || !profile?.id) return;
+      const { data: g } = await supabase.from('group_threads').select('id').eq('is_global', true).maybeSingle();
+      if (!g?.id) return;
+      try { await supabase.from('group_members').upsert({ thread_id: g.id, user_id: profile.id }, { onConflict: 'thread_id,user_id' }); } catch {}
+      await supabase.from('group_messages').insert({ thread_id: g.id, sender_id: profile.id, body: text });
+      // Broadcast push
+      try {
+        const idsRes = await supabase.from('group_members').select('user_id').eq('thread_id', g.id);
+        const ids = (idsRes.data || []).map((r:any)=>r.user_id);
+        if (ids.length) {
+          await fetch('/api/push/broadcast', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userIds: ids, payload: { title: 'New community message', body: text.slice(0,100), url: '/messages' } }) });
+        }
+      } catch {}
+      setNewMessage('');
+      await fetchGroupMessages();
+    } catch (e) { console.error(e); }
+  };
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      sendMessage();
+      if (tab === 'community') {
+        sendCommunityMessage();
+      } else {
+        sendMessage();
+      }
     }
   };
 
@@ -267,14 +310,14 @@ export default function MessagesPage() {
 
       {/* Messages list fills available height */}
       <div ref={listRef} className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4 pb-28">
-          {messages.length === 0 ? (
+          {(tab==='community' ? communityMsgs : coachMsgs).length === 0 ? (
               <div className="text-center py-12">
                 <MessageCircle className="w-8 h-8 sm:w-12 sm:h-12 text-gold mx-auto mb-4 opacity-50" />
               <p className="text-white/60 text-sm sm:text-base">No messages yet</p>
               <p className="text-xs sm:text-sm text-white/60">{tab==='coach' ? 'Start a conversation with your coach' : 'Say hello to the community'}</p>
               </div>
             ) : (
-            messages.map((message) => {
+            (tab==='community' ? communityMsgs : coachMsgs).map((message) => {
               const isOwn = message.sender_id === profile?.id;
                 const canDelete = message.sender_id === profile?.id;
                 return (
@@ -302,7 +345,7 @@ export default function MessagesPage() {
                           <p className="text-[11px] text-white/60 mb-1">{message.sender?.full_name || message.sender?.email || 'User'}</p>
                         )}
                         <p className="text-xs sm:text-sm">{message.body}</p>
-                        {Array.isArray((message as any).attachments) && (message as any).attachments.length > 0 && (
+                        {tab!=='community' && Array.isArray((message as any).attachments) && (message as any).attachments.length > 0 && (
                           <div className="mt-2 space-y-2">
                             {(message as any).attachments.map((att:any) => {
                               const { data } = supabase.storage.from('chat').getPublicUrl(att.storage_path);
@@ -331,8 +374,15 @@ export default function MessagesPage() {
                             <button
                               className={`text-[10px] underline ${isOwn ? 'text-black/80' : 'text-white/80'}`}
                               onClick={async ()=>{
-                                await supabase.from('messages').delete().eq('id', message.id);
-                                if (threadId) await fetchMessages(threadId);
+                                try {
+                                  if (tab==='community') {
+                                    await supabase.from('group_messages').delete().eq('id', message.id);
+                                    await fetchGroupMessages();
+                                  } else {
+                                    await supabase.from('messages').delete().eq('id', message.id);
+                                    if (threadId) await fetchMessages(threadId);
+                                  }
+                                } catch (e) { console.error(e); }
                               }}
                             >
                               Delete
@@ -370,23 +420,7 @@ export default function MessagesPage() {
           <Button 
             onClick={async ()=>{
               if (tab==='community') {
-                try {
-                  const { data: g } = await supabase.from('group_threads').select('id').eq('is_global', true).maybeSingle();
-                  if (!g?.id || !profile?.id || !newMessage.trim()) return;
-                // Ensure membership before sending (idempotent)
-                try { await supabase.from('group_members').upsert({ thread_id: g.id, user_id: profile.id }, { onConflict: 'thread_id,user_id' }); } catch {}
-                await supabase.from('group_messages').insert({ thread_id: g.id, sender_id: profile.id, body: newMessage.trim() });
-                // Broadcast to all members (clients and coaches)
-                try {
-                  const idsRes = await supabase.from('group_members').select('user_id').eq('thread_id', g.id);
-                  const ids = (idsRes.data || []).map((r:any)=>r.user_id);
-                  if (ids.length) {
-                    await fetch('/api/push/broadcast', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userIds: ids, payload: { title: 'New community message', body: newMessage.trim().slice(0,100), url: '/messages' } }) });
-                  }
-                } catch {}
-                  setNewMessage('');
-                  await fetchGroupMessages();
-                } catch (e) { console.error(e); }
+                await sendCommunityMessage();
               } else {
                 await sendMessage();
               }
