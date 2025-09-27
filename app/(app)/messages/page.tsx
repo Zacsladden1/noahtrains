@@ -142,6 +142,8 @@ export default function MessagesPage() {
   useEffect(() => {
     (async () => {
       if (tab === 'community') {
+        // Ensure the global community thread exists (server creates if missing)
+        try { await fetch('/api/group/init', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: profile?.id }) }); } catch {}
         await fetchGroupMessages();
       } else if (tab === 'coach' && threadId) {
         await fetchMessages(threadId);
@@ -170,6 +172,12 @@ export default function MessagesPage() {
     try {
       const { data: g } = await supabase.from('group_threads').select('id').eq('is_global', true).maybeSingle();
       if (!g?.id) { setMessages([]); return; }
+      // Ensure current user is a member of the global thread (idempotent)
+      try {
+        if (profile?.id) {
+          await supabase.from('group_members').upsert({ thread_id: g.id, user_id: profile.id }, { onConflict: 'thread_id,user_id' });
+        }
+      } catch {}
       const { data } = await supabase
         .from('group_messages')
         .select('id, sender_id, body, created_at, sender:profiles(id, full_name, email, avatar_url)')
@@ -191,6 +199,8 @@ export default function MessagesPage() {
         .insert({ thread_id: threadId, sender_id: profile.id, body });
       if (error) throw error;
       await supabase.from('message_threads').update({ last_message_at: new Date().toISOString(), last_viewed_by_client_at: new Date().toISOString() }).eq('id', threadId);
+      // Notify coach devices
+      try { await fetch('/api/push/message', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ threadId }) }); } catch {}
       setNewMessage('');
       await fetchMessages(threadId);
     } catch (e) {
@@ -363,7 +373,17 @@ export default function MessagesPage() {
                 try {
                   const { data: g } = await supabase.from('group_threads').select('id').eq('is_global', true).maybeSingle();
                   if (!g?.id || !profile?.id || !newMessage.trim()) return;
-                  await supabase.from('group_messages').insert({ thread_id: g.id, sender_id: profile.id, body: newMessage.trim() });
+                // Ensure membership before sending (idempotent)
+                try { await supabase.from('group_members').upsert({ thread_id: g.id, user_id: profile.id }, { onConflict: 'thread_id,user_id' }); } catch {}
+                await supabase.from('group_messages').insert({ thread_id: g.id, sender_id: profile.id, body: newMessage.trim() });
+                // Broadcast to all members (clients and coaches)
+                try {
+                  const idsRes = await supabase.from('group_members').select('user_id').eq('thread_id', g.id);
+                  const ids = (idsRes.data || []).map((r:any)=>r.user_id);
+                  if (ids.length) {
+                    await fetch('/api/push/broadcast', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userIds: ids, payload: { title: 'New community message', body: newMessage.trim().slice(0,100), url: '/messages' } }) });
+                  }
+                } catch {}
                   setNewMessage('');
                   await fetchGroupMessages();
                 } catch (e) { console.error(e); }
