@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 
 type Props = { className?: string; onRegistered?: () => void };
@@ -9,7 +9,50 @@ export default function EnableNotificationsButton({ className, onRegistered }: P
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
+  const [enabled, setEnabled] = useState<boolean>(false);
   const { user } = useAuth();
+
+  // Convert subscription to payload for our API
+  const subToPayload = async (sub: PushSubscription | null) => {
+    if (!sub) return null;
+    const keyBuf = sub.getKey('p256dh');
+    const authBuf = sub.getKey('auth');
+    if (!keyBuf || !authBuf) return null;
+    const toB64Url = (u8: Uint8Array) => btoa(String.fromCharCode(...u8)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    return {
+      endpoint: sub.endpoint,
+      keys: {
+        p256dh: toB64Url(new Uint8Array(keyBuf)),
+        auth: toB64Url(new Uint8Array(authBuf)),
+      },
+      userId: user?.id,
+    };
+  };
+
+  // On mount, detect existing permission/subscription so the button reflects reality
+  useEffect(() => {
+    (async () => {
+      try {
+        if (typeof window === 'undefined') return;
+        if (!('Notification' in window)) return;
+        if (Notification.permission !== 'granted') { setEnabled(false); return; }
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) { setEnabled(false); return; }
+        const reg = await navigator.serviceWorker.getRegistration();
+        const sub = await reg?.pushManager.getSubscription() || null;
+        if (sub) {
+          setEnabled(true);
+          // Best-effort sync to backend so settings persist across devices
+          try {
+            const payload = await subToPayload(sub);
+            if (payload) await fetch('/api/push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+          } catch {}
+          setStatus('Enabled');
+        } else {
+          setEnabled(false);
+        }
+      } catch {}
+    })();
+  }, [user?.id]);
 
   const enable = async () => {
     setError(null);
@@ -52,19 +95,8 @@ export default function EnableNotificationsButton({ className, onRegistered }: P
         })()
       });
 
-      // Convert subscription to endpoint + base64url keys
-      const keyBuf = sub.getKey('p256dh');
-      const authBuf = sub.getKey('auth');
-      if (!keyBuf || !authBuf) { setError('Invalid subscription keys'); return; }
-      const toB64Url = (u8: Uint8Array) => btoa(String.fromCharCode(...u8)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-      const payload = {
-        endpoint: sub.endpoint,
-        keys: {
-          p256dh: toB64Url(new Uint8Array(keyBuf)),
-          auth: toB64Url(new Uint8Array(authBuf)),
-        },
-        userId: user?.id,
-      };
+      const payload = await subToPayload(sub);
+      if (!payload) { setError('Invalid subscription keys'); return; }
 
       setStatus('Saving subscription…');
       const resp = await fetch('/api/push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -72,6 +104,7 @@ export default function EnableNotificationsButton({ className, onRegistered }: P
       if (!resp.ok || j?.ok === false) throw new Error(j?.error || 'Failed to save');
 
       setStatus('Enabled');
+      setEnabled(true);
       onRegistered?.();
     } catch (e: any) {
       setError(e?.message || 'Failed to enable');
@@ -82,8 +115,8 @@ export default function EnableNotificationsButton({ className, onRegistered }: P
 
   return (
     <div className="flex items-center gap-2">
-      <button onClick={enable} className={className} disabled={loading}>
-        {loading ? 'Enabling…' : 'Enable Notifications'}
+      <button onClick={enable} className={className} disabled={loading || enabled}>
+        {loading ? 'Enabling…' : (enabled ? 'Notifications enabled' : 'Enable Notifications')}
       </button>
       {status && !error ? <span className="text-white/60 text-xs">{status}</span> : null}
       {error ? <span className="text-red-400 text-xs">{error}</span> : null}
