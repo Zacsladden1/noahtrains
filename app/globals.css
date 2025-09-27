@@ -145,6 +145,16 @@
   @apply bg-black border border-white/20 rounded-xl sm:rounded-2xl;
 }
 
+/* Compact variant to ensure borders hug content on small list items */
+.mobile-card.compact {
+  @apply border-white/10 rounded-lg !p-0 overflow-hidden;
+}
+
+/* Ultra-compact card content for list items */
+.card-row-compact {
+  @apply py-1 px-2 leading-none;
+}
+
 .mobile-input {
   @apply h-11 sm:h-12 bg-black border-white/30 text-white placeholder:text-white/50 focus:border-primary focus:ring-primary text-base;
 }

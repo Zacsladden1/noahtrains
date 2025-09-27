@@ -16,6 +16,7 @@ const cinzel = Cinzel({
   weight: ['400', '500', '600', '700'],
   variable: '--font-heading',
   display: 'swap',
+  preload: false,
 });
 
 const cormorant = Cormorant_Garamond({
@@ -23,6 +24,7 @@ const cormorant = Cormorant_Garamond({
   weight: ['300', '400', '500', '600', '700'],
   variable: '--font-body',
   display: 'swap',
+  preload: false,
 });
 
 export const metadata: Metadata = {
@@ -52,7 +54,7 @@ export default function RootLayout({
         <link
           rel="apple-touch-icon"
           sizes="180x180"
-          href="/no%20backround%20high%20quality%20logo%202.png"
+          href="/Screenshot%202025-09-24%20at%2020.12.14.png"
         />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="mobile-web-app-capable" content="yes" />

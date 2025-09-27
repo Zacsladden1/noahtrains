@@ -14,6 +14,8 @@ export function BarcodeScanner({ onDetected, onManualEntry }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [pendingScan, setPendingScan] = useState<string | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [pendingLabel, setPendingLabel] = useState<string | null>(null);
+  const [labelLoading, setLabelLoading] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [useTorch, setUseTorch] = useState(false);
 
@@ -31,6 +33,23 @@ export function BarcodeScanner({ onDetected, onManualEntry }: Props) {
     if (!pendingScan) {
       setPendingScan(code);
       setShowConfirmation(true);
+      // Try to resolve a human-friendly label for confirmation
+      (async () => {
+        try {
+          setLabelLoading(true);
+          const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json`);
+          const data = await res.json().catch(() => ({} as any));
+          const p = (data && (data.product || data.data)) || null;
+          const name = p?.product_name || p?.generic_name || null;
+          const brand = p?.brands || null;
+          const label = [name, brand].filter(Boolean).join(' · ');
+          setPendingLabel(label || null);
+        } catch {
+          setPendingLabel(null);
+        } finally {
+          setLabelLoading(false);
+        }
+      })();
     }
   }, [pendingScan]);
 
@@ -101,14 +120,7 @@ export function BarcodeScanner({ onDetected, onManualEntry }: Props) {
     };
   }, [isIOS, useTorch, facing, showConfirmation, pendingScan, handleScan, handleError]);
 
-  const handleConfirmScan = useCallback(() => {
-    if (pendingScan) {
-      onDetected(pendingScan);
-      setPendingScan(null);
-      setShowConfirmation(false);
-    }
-  }, [pendingScan, onDetected]);
-
+  // Ensure cleanup util is defined before any hook depends on it
   const cleanupCamera = useCallback(() => {
     try {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -119,21 +131,59 @@ export function BarcodeScanner({ onDetected, onManualEntry }: Props) {
     try {
       if (streamRef.current) {
         // Turn off torch if supported by track constraints before stopping
-        const videoTrack = streamRef.current.getVideoTracks()[0];
-        if (videoTrack) {
-          try { (videoTrack as any).applyConstraints({ advanced: [{ torch: false }] }); } catch {}
+        const videoTracks = streamRef.current.getVideoTracks();
+        for (const vt of videoTracks) {
+          try { (vt as any).applyConstraints({ advanced: [{ torch: false }] }); } catch {}
         }
-        streamRef.current.getTracks().forEach(t => t.stop());
+        streamRef.current.getTracks().forEach(t => {
+          try { t.stop(); } catch {}
+        });
         streamRef.current = null;
       }
     } catch {}
+    // Also detach any media from the video element to force release on iOS
+    try {
+      if (videoRef.current) {
+        try { videoRef.current.pause(); } catch {}
+        try { (videoRef.current as any).srcObject = null; } catch {}
+      }
+    } catch {}
   }, []);
+
+  const handleConfirmScan = useCallback(() => {
+    if (pendingScan) {
+      onDetected(pendingScan);
+      setPendingScan(null);
+      setShowConfirmation(false);
+      // Ensure torch and camera are fully turned off when leaving scanner
+      setUseTorch(false);
+      cleanupCamera();
+      setPendingLabel(null);
+    }
+  }, [pendingScan, onDetected, cleanupCamera]);
 
   const handleCancelScan = useCallback(() => {
     setPendingScan(null);
     setShowConfirmation(false);
     cleanupCamera();
     setUseTorch(false);
+    setPendingLabel(null);
+  }, [cleanupCamera]);
+
+  // Make sure torch/camera are disabled when page is hidden or leaving
+  useEffect(() => {
+    const onHide = () => {
+      try { setUseTorch(false); } catch {}
+      try { cleanupCamera(); } catch {}
+    };
+    document.addEventListener('visibilitychange', onHide);
+    window.addEventListener('pagehide', onHide);
+    window.addEventListener('beforeunload', onHide);
+    return () => {
+      document.removeEventListener('visibilitychange', onHide);
+      window.removeEventListener('pagehide', onHide);
+      window.removeEventListener('beforeunload', onHide);
+    };
   }, [cleanupCamera]);
 
   return (
@@ -197,9 +247,18 @@ export function BarcodeScanner({ onDetected, onManualEntry }: Props) {
           <div className="text-center space-y-3">
             <div className="text-green-400 text-lg font-semibold">✓ Barcode Detected!</div>
             <div className="bg-black/40 rounded p-3">
-              <div className="text-white font-mono text-sm break-all">{pendingScan}</div>
+              {labelLoading ? (
+                <div className="text-white/70 text-sm">Looking up product…</div>
+              ) : (
+                <>
+                  <div className="text-white text-sm break-words font-semibold">
+                    {pendingLabel || 'Unknown product'}
+                  </div>
+                  <div className="text-white/50 font-mono text-xs mt-1">{pendingScan}</div>
+                </>
+              )}
             </div>
-            <p className="text-white/70 text-sm">Confirm this barcode to add the product?</p>
+            <p className="text-white/70 text-sm">Confirm to use this product</p>
             <div className="flex gap-2 justify-center">
               <button
                 onClick={handleConfirmScan}

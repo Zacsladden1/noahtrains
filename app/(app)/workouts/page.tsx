@@ -15,7 +15,7 @@ import {
   TrendingUp,
   Dumbbell
 } from 'lucide-react';
-import { Workout, Exercise } from '@/types/supabase';
+import { Workout } from '@/types/supabase';
 import Link from 'next/link';
 
 export default function WorkoutsPage() {
@@ -73,12 +73,7 @@ export default function WorkoutsPage() {
     }
   };
 
-  const filteredExercises = exercises.filter(exercise =>
-    exercise.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    exercise.muscle_groups?.some(muscle => 
-      muscle.toLowerCase().includes(searchQuery.toLowerCase())
-    )
-  );
+  // removed stray exercises search that caused ReferenceError
 
   if (loading) {
     return (

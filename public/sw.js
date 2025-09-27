@@ -44,7 +44,7 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'Noahhtrains';
   const options = {
     body: data.body || 'You have a new notification',
-    icon: '/no%20backround%20high%20quality%20logo%202.png',
+    icon: '/Screenshot%202025-09-24%20at%2020.12.14.png',
     badge: '/favicon.svg',
     data: { url: data.url || '/dashboard' },
   };

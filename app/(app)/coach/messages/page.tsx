@@ -48,7 +48,7 @@ export default function CoachMessagesPage() {
       if (clientIds.length) {
         const { data: cps } = await supabase
           .from('profiles')
-          .select('id, full_name, email')
+          .select('id, full_name, email, avatar_url')
           .in('id', clientIds);
         const map: Record<string, any> = {};
         (cps || []).forEach((c: any) => { map[c.id] = c; });
@@ -121,22 +121,30 @@ export default function CoachMessagesPage() {
       )}
 
       {tab==='coach' ? (
-      <div className="flex-1 overflow-y-auto p-3 sm:p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
+      <div className="flex-1 overflow-y-auto p-3 sm:p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 md:gap-4 auto-rows-min items-start">
         {filtered.map((t) => {
           const c = clients[t.client_id];
           const title = c?.full_name || c?.email || 'Client';
-          const when = t.last_message_at ? new Date(t.last_message_at).toLocaleString() : new Date(t.created_at).toLocaleString();
+          const lastAt = new Date(t.last_message_at || t.created_at);
+          const dateStr = isNaN(lastAt.getTime()) ? '' : lastAt.toLocaleDateString();
+          const timeStr = isNaN(lastAt.getTime()) ? '' : lastAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
           const unread = isUnread(t);
           return (
-            <Card key={t.id} className="mobile-card relative cursor-pointer p-0 border-white/10 h-auto min-h-0" onClick={() => router.push(`/coach/messages/${t.id}`)} style={{ minHeight: 'auto' }}>
+            <Card key={t.id} className="mobile-card compact relative cursor-pointer p-0 border border-white/10 shadow-none h-auto min-h-0 w-full max-w-full overflow-hidden max-h-[72px] sm:max-h-[80px]" onClick={() => router.push(`/coach/messages/${t.id}`)} style={{ minHeight: 'auto' }}>
               {unread && (
                 <div className="absolute top-1.5 right-1.5 w-3.5 h-3.5 bg-red-600 rounded-full flex items-center justify-center text-white text-[9px] font-bold">•</div>
               )}
-              <CardHeader className="!p-2 sm:!p-2 !space-y-0">
-                <CardTitle className="text-white text-[12px] sm:text-sm leading-tight truncate">{title}</CardTitle>
-              </CardHeader>
-              <CardContent className="!p-2 pt-0">
-                <p className="text-white/60 text-[10px] truncate">{when}</p>
+              <CardContent className="card-row-compact">
+                <div className="flex items-center gap-3 min-w-0">
+                  <Avatar className="w-10 h-10 sm:w-12 sm:h-12">
+                    {c?.avatar_url ? <AvatarImage src={c.avatar_url} alt={title} /> : null}
+                    <AvatarFallback className="text-[12px] sm:text-sm bg-gold text-black">{(title || 'U').slice(0,1)}</AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-white text-[14px] sm:text-base leading-tight truncate">{title}</p>
+                    <p className="text-white/70 text-[12px] sm:text-[13px] mt-0.5 truncate">{dateStr && timeStr ? `${dateStr} ${timeStr}` : ''}</p>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           );

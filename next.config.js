@@ -23,6 +23,9 @@ const nextConfig = {
         source: '/:path*',
         headers: [
           { key: 'Cache-Control', value: 'no-store' },
+          // Disallow the app from being embedded and block any iframes by default
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'Content-Security-Policy', value: "frame-ancestors 'none'; frame-src 'none'" },
         ],
       },
       {
