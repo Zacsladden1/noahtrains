@@ -85,6 +85,24 @@ export default function ProfilePage() {
     })();
   }, [profile?.id]);
 
+  // Keep form in sync with latest profile values when they load/update
+  useEffect(() => {
+    setForm({
+      phone: (profile as any)?.phone ?? '',
+      age: (profile as any)?.age ?? '',
+      current_weight_kg: (profile as any)?.current_weight_kg ?? '',
+      goal_weight_kg: (profile as any)?.goal_weight_kg ?? '',
+    });
+  }, [profile?.phone, profile?.age, profile?.current_weight_kg, profile?.goal_weight_kg]);
+
+  // If user already completed onboarding, don't show this page; redirect home
+  useEffect(() => {
+    if (profile && (profile as any).onboarding_complete) {
+      const target = (profile?.role === 'coach') ? '/coach' : '/dashboard';
+      router.replace(target);
+    }
+  }, [profile?.role, (profile as any)?.onboarding_complete, router]);
+
   return (
     <div className="mobile-padding mobile-spacing bg-black min-h-screen">
       <h1 className="text-xl sm:text-2xl md:text-3xl font-heading text-white mb-3">Settings</h1>

@@ -14,6 +14,14 @@ export default function EnableNotificationsButton({ className }: { className?: s
       const perm = await Notification.requestPermission();
       if (perm !== 'granted') { alert('Notifications not granted'); return; }
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) { alert('Push not supported'); return; }
+      // Ensure sw.js exists before attempting register
+      try {
+        const head = await fetch('/sw.js', { method: 'HEAD', cache: 'no-store' });
+        if (!head.ok) throw new Error('sw.js not found');
+      } catch (_) {
+        alert('Service worker not available on this deployment.');
+        return;
+      }
       const reg = await navigator.serviceWorker.register('/sw.js');
       const res = await fetch('/api/push/vapid');
       const { publicKey } = await res.json();
@@ -29,7 +37,9 @@ export default function EnableNotificationsButton({ className }: { className?: s
           return arr;
         })()
       });
-      await fetch('/api/push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...sub, userId: user?.id }) });
+      const resp = await fetch('/api/push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...sub, userId: user?.id }) });
+      const j = await resp.json().catch(()=>({ ok: false }));
+      if (!resp.ok || j?.ok === false) throw new Error(j?.error || 'Failed to save subscription');
       alert('Notifications enabled');
     } catch (e) {
       console.error(e);
