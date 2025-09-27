@@ -11,6 +11,14 @@ export default function SWUpdater() {
 
     const register = async () => {
       try {
+        // Verify sw.js exists before registering to avoid iOS errors
+        try {
+          const head = await fetch('/sw.js', { method: 'HEAD', cache: 'no-store' });
+          if (!head.ok) return; // silently skip if not found
+        } catch {
+          return;
+        }
+
         const reg = await navigator.serviceWorker.register('/sw.js');
 
         // Proactively check for updates when app returns to foreground
