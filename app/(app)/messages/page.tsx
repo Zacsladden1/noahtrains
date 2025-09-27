@@ -11,8 +11,6 @@ import {
   Send, 
   Paperclip, 
   MessageCircle, 
-  Phone, 
-  Video,
   MoreVertical,
   Image as ImageIcon
 } from 'lucide-react';
@@ -27,6 +25,7 @@ export default function MessagesPage() {
   const [threadId, setThreadId] = useState<string | null>(null);
   const [coachId, setCoachId] = useState<string | null>(null);
   const [coachProfile, setCoachProfile] = useState<any | null>(null);
+  const [tab, setTab] = useState<'coach' | 'community'>('coach');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -139,6 +138,17 @@ export default function MessagesPage() {
     }
   };
 
+  // Load messages when switching tabs
+  useEffect(() => {
+    (async () => {
+      if (tab === 'community') {
+        await fetchGroupMessages();
+      } else if (tab === 'coach' && threadId) {
+        await fetchMessages(threadId);
+      }
+    })();
+  }, [tab, threadId]);
+
   const fetchMessages = async (tid: string) => {
     try {
       const { data } = await supabase
@@ -154,6 +164,22 @@ export default function MessagesPage() {
     } catch (e) {
       console.error('Error fetching messages:', e);
     }
+  };
+
+  const fetchGroupMessages = async () => {
+    try {
+      const { data: g } = await supabase.from('group_threads').select('id').eq('is_global', true).maybeSingle();
+      if (!g?.id) { setMessages([]); return; }
+      const { data } = await supabase
+        .from('group_messages')
+        .select('id, sender_id, body, created_at, sender:profiles(id, full_name, email, avatar_url)')
+        .eq('thread_id', g.id)
+        .order('created_at', { ascending: true });
+      setMessages(data || []);
+      requestAnimationFrame(() => {
+        try { if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight; } catch {}
+      });
+    } catch (e) { console.error('Error fetching group messages:', e); }
   };
 
   const sendMessage = async () => {
@@ -211,22 +237,14 @@ export default function MessagesPage() {
 
   return (
     <div className="bg-black min-h-[100dvh] flex flex-col">
-      {/* Top bar */}
+      {/* Top bar with tabs */}
       <div className="px-3 py-3 sm:px-4 sm:py-4 border-b border-white/10">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2 sm:space-x-3">
-            <Avatar className="w-8 h-8 sm:w-10 sm:h-10">
-              {coachProfile?.avatar_url ? (
-                <AvatarImage src={coachProfile.avatar_url} alt={coachProfile.full_name || 'Coach'} />
-              ) : null}
-              <AvatarFallback className="bg-gold text-black">{(coachProfile?.full_name || coachProfile?.email || 'C').slice(0,1)}</AvatarFallback>
-            </Avatar>
-            <div>
-              <h1 className="text-white text-base sm:text-lg font-heading">Messages</h1>
-              <div className="flex items-center space-x-2">
-                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-gold rounded-full"></div>
-                <span className="text-xs sm:text-sm text-white/60">Online</span>
-              </div>
+          <div className="flex items-center gap-3">
+            <h1 className="text-white text-base sm:text-lg font-heading">Messages</h1>
+            <div className="flex items-center gap-1 bg-white/5 rounded p-1">
+              <button onClick={()=>setTab('coach')} className={`px-2 py-1 text-xs rounded ${tab==='coach'?'bg-gold text-black':'text-white/70 hover:bg-white/10'}`}>Coach</button>
+              <button onClick={()=>setTab('community')} className={`px-2 py-1 text-xs rounded ${tab==='community'?'bg-gold text-black':'text-white/70 hover:bg-white/10'}`}>Community</button>
             </div>
           </div>
           <div className="flex items-center space-x-1 sm:space-x-2">
@@ -239,28 +257,30 @@ export default function MessagesPage() {
 
       {/* Messages list fills available height */}
       <div ref={listRef} className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4 pb-28">
-            {messages.length === 0 ? (
+          {messages.length === 0 ? (
               <div className="text-center py-12">
                 <MessageCircle className="w-8 h-8 sm:w-12 sm:h-12 text-gold mx-auto mb-4 opacity-50" />
-                <p className="text-white/60 text-sm sm:text-base">No messages yet</p>
-                <p className="text-xs sm:text-sm text-white/60">Start a conversation with your coach</p>
+              <p className="text-white/60 text-sm sm:text-base">No messages yet</p>
+              <p className="text-xs sm:text-sm text-white/60">{tab==='coach' ? 'Start a conversation with your coach' : 'Say hello to the community'}</p>
               </div>
             ) : (
-              messages.map((message) => {
-                const isOwn = message.sender_id === profile?.id;
+            messages.map((message) => {
+              const isOwn = message.sender_id === profile?.id;
                 const canDelete = message.sender_id === profile?.id;
                 return (
                   <div
                     key={message.id}
                     className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
                   >
-                    <div className={`flex items-end space-x-1 sm:space-x-2 max-w-xs lg:max-w-md ${isOwn ? 'flex-row-reverse space-x-reverse' : ''}`}>
+                    <div className={`flex items-end space-x-2 sm:space-x-3 max-w-xs lg:max-w-md ${isOwn ? 'flex-row-reverse space-x-reverse' : ''}`}>
                       {!isOwn && (
-                        <Avatar className="w-5 h-5 sm:w-6 sm:h-6">
-                          {coachProfile?.avatar_url ? (
-                            <AvatarImage src={coachProfile.avatar_url} alt={coachProfile.full_name || 'Coach'} />
-                          ) : null}
-                          <AvatarFallback className="text-xs bg-gold text-black">{(coachProfile?.full_name || coachProfile?.email || 'C').slice(0,1)}</AvatarFallback>
+                        <Avatar className="w-6 h-6 sm:w-8 sm:h-8">
+                          {tab==='community' ? (
+                            message.sender?.avatar_url ? <AvatarImage src={message.sender.avatar_url} alt={message.sender.full_name || 'User'} /> : null
+                          ) : (
+                            coachProfile?.avatar_url ? <AvatarImage src={coachProfile.avatar_url} alt={coachProfile.full_name || 'Coach'} /> : null
+                          )}
+                          <AvatarFallback className="text-xs bg-gold text-black">{tab==='community' ? ((message.sender?.full_name || message.sender?.email || 'U').slice(0,1)) : ((coachProfile?.full_name || coachProfile?.email || 'C').slice(0,1))}</AvatarFallback>
                         </Avatar>
                       )}
                       <div
@@ -268,6 +288,9 @@ export default function MessagesPage() {
                           isOwn ? 'bg-gold text-black' : 'bg-white/10 text-white'
                         }`}
                       >
+                        {!isOwn && tab==='community' && (
+                          <p className="text-[11px] text-white/60 mb-1">{message.sender?.full_name || message.sender?.email || 'User'}</p>
+                        )}
                         <p className="text-xs sm:text-sm">{message.body}</p>
                         {Array.isArray((message as any).attachments) && (message as any).attachments.length > 0 && (
                           <div className="mt-2 space-y-2">
@@ -335,7 +358,19 @@ export default function MessagesPage() {
             />
           </div>
           <Button 
-            onClick={sendMessage}
+            onClick={async ()=>{
+              if (tab==='community') {
+                try {
+                  const { data: g } = await supabase.from('group_threads').select('id').eq('is_global', true).maybeSingle();
+                  if (!g?.id || !profile?.id || !newMessage.trim()) return;
+                  await supabase.from('group_messages').insert({ thread_id: g.id, sender_id: profile.id, body: newMessage.trim() });
+                  setNewMessage('');
+                  await fetchGroupMessages();
+                } catch (e) { console.error(e); }
+              } else {
+                await sendMessage();
+              }
+            }}
             disabled={!newMessage.trim()}
             className="bg-gold hover:bg-gold/90 text-black w-8 h-8 sm:w-10 sm:h-10 p-0"
           >

@@ -6,16 +6,12 @@ import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Play, 
-  Plus, 
   Calendar, 
   Clock, 
   CheckCircle, 
-  Search,
-  Filter,
   TrendingUp,
   Dumbbell
 } from 'lucide-react';
@@ -25,14 +21,11 @@ import Link from 'next/link';
 export default function WorkoutsPage() {
   const { profile } = useAuth();
   const [workouts, setWorkouts] = useState<Workout[]>([]);
-  const [exercises, setExercises] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     if (profile) {
       fetchWorkouts();
-      fetchExercises();
     }
   }, [profile]);
 
@@ -54,44 +47,9 @@ export default function WorkoutsPage() {
     }
   };
 
-  const fetchExercises = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('exercises')
-        .select('*')
-        .order('name');
+  useEffect(() => { setLoading(false); }, []);
 
-      if (error) throw error;
-      setExercises(data || []);
-    } catch (error) {
-      console.error('Error fetching exercises:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const createNewWorkout = async () => {
-    if (!profile) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('workouts')
-        .insert({
-          user_id: profile.id,
-          name: 'New Workout',
-          status: 'planned',
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      
-      // Redirect to workout detail page
-      window.location.href = `/workouts/${data.id}`;
-    } catch (error) {
-      console.error('Error creating workout:', error);
-    }
-  };
+  // Clients no longer create workouts themselves; coaches assign them.
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -143,19 +101,13 @@ export default function WorkoutsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl sm:text-2xl md:text-3xl font-heading text-white">Workouts</h1>
-          <p className="text-white/60 text-xs sm:text-sm">Track your training progress</p>
+          <p className="text-white/60 text-xs sm:text-sm">Your coach assigns daily workouts. Log and track progress here.</p>
         </div>
-        <Button onClick={createNewWorkout} className="bg-gold hover:bg-gold/90 text-black text-xs sm:text-sm px-3 sm:px-4">
-          <Plus className="w-4 h-4 mr-1 sm:mr-2" />
-          <span className="hidden sm:inline">New Workout</span>
-          <span className="sm:hidden">New</span>
-        </Button>
       </div>
 
       <Tabs defaultValue="history" className="mobile-spacing">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="history">History</TabsTrigger>
-          <TabsTrigger value="exercises">Exercises</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
 
@@ -166,12 +118,8 @@ export default function WorkoutsPage() {
                 <Dumbbell className="w-12 h-12 text-white/30 mx-auto mb-4" />
                 <h3 className="text-base sm:text-lg font-semibold mb-2 text-white">No workouts yet</h3>
                 <p className="text-white/60 mb-4 text-sm">
-                  Start your fitness journey by creating your first workout
+                  Your coach will assign your workouts here.
                 </p>
-                <Button onClick={createNewWorkout} className="bg-gold hover:bg-gold/90 text-black">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create First Workout
-                </Button>
               </CardContent>
             </Card>
           ) : (
@@ -230,59 +178,7 @@ export default function WorkoutsPage() {
           )}
         </TabsContent>
 
-        <TabsContent value="exercises" className="mobile-spacing">
-          <div className="flex items-center space-x-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/50 w-4 h-4" />
-              <Input
-                placeholder="Search exercises..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 mobile-input"
-              />
-            </div>
-            <Button variant="outline" className="border-white/30 text-white hover:bg-white/10">
-              <Filter className="w-4 h-4 sm:mr-2 text-gold" />
-              <span className="hidden sm:inline">Filter</span>
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
-            {filteredExercises.map((exercise) => (
-              <Card key={exercise.id} className="mobile-card hover:border-gold/50 transition-colors">
-                <CardHeader className="pb-2 sm:pb-3">
-                  <CardTitle className="text-base sm:text-lg text-white">{exercise.name}</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2 sm:space-y-3">
-                  {exercise.description && (
-                    <p className="text-xs sm:text-sm text-white/60 line-clamp-2">
-                      {exercise.description}
-                    </p>
-                  )}
-                  
-                  {exercise.muscle_groups && exercise.muscle_groups.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {exercise.muscle_groups.slice(0, 3).map((muscle) => (
-                        <Badge key={muscle} className="text-xs bg-white/10 text-white">
-                          {muscle}
-                        </Badge>
-                      ))}
-                      {exercise.muscle_groups.length > 3 && (
-                        <Badge className="text-xs bg-white/10 text-white">
-                          +{exercise.muscle_groups.length - 3}
-                        </Badge>
-                      )}
-                    </div>
-                  )}
-                  
-                  <Button variant="outline" size="sm" className="w-full border-white/30 text-white hover:bg-white/10">
-                    Add to Workout
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
+        
 
         <TabsContent value="analytics" className="mobile-spacing">
           <div className="grid mobile-grid-3 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">

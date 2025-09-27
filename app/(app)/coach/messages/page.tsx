@@ -2,11 +2,14 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/use-auth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { MessageCircle, Send } from 'lucide-react';
 
 type Thread = {
   id: string;
@@ -22,7 +25,14 @@ export default function CoachMessagesPage() {
   const [threads, setThreads] = useState<Thread[]>([]);
   const [clients, setClients] = useState<Record<string, any>>({});
   const [q, setQ] = useState('');
+  const [tab, setTab] = useState<'coach' | 'community'>('coach');
   const router = useRouter();
+
+  // Community chat state
+  const [cMsgs, setCMsgs] = useState<any[]>([]);
+  const [cText, setCText] = useState('');
+  const [cLoading, setCLoading] = useState(false);
+  const cListRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!profile?.id) return;
@@ -47,6 +57,41 @@ export default function CoachMessagesPage() {
     })();
   }, [profile?.id]);
 
+  useEffect(() => {
+    if (tab === 'community') {
+      (async () => {
+        setCLoading(true);
+        await fetchCommunity();
+        setCLoading(false);
+      })();
+    }
+  }, [tab]);
+
+  const fetchCommunity = async () => {
+    try {
+      const { data: g } = await supabase.from('group_threads').select('id').eq('is_global', true).maybeSingle();
+      if (!g?.id) { setCMsgs([]); return; }
+      const { data } = await supabase
+        .from('group_messages')
+        .select('id, sender_id, body, created_at, sender:profiles(id, full_name, email, avatar_url)')
+        .eq('thread_id', g.id)
+        .order('created_at', { ascending: true });
+      setCMsgs(data || []);
+      requestAnimationFrame(()=>{ try { if (cListRef.current) cListRef.current.scrollTop = cListRef.current.scrollHeight; } catch {} });
+    } catch {}
+  };
+
+  const sendCommunity = async () => {
+    try {
+      if (!cText.trim() || !profile?.id) return;
+      const { data: g } = await supabase.from('group_threads').select('id').eq('is_global', true).maybeSingle();
+      if (!g?.id) return;
+      await supabase.from('group_messages').insert({ thread_id: g.id, sender_id: profile.id, body: cText.trim() });
+      setCText('');
+      await fetchCommunity();
+    } catch {}
+  };
+
   const filtered = threads.filter((t) => {
     const c = clients[t.client_id];
     const name = (c?.full_name || c?.email || '').toLowerCase();
@@ -60,35 +105,81 @@ export default function CoachMessagesPage() {
   };
 
   return (
-    <div className="mobile-padding mobile-spacing bg-black min-h-screen">
-      <h1 className="text-xl sm:text-2xl md:text-3xl font-heading text-white mb-3">Messages</h1>
-      <Input placeholder="Search clients..." value={q} onChange={(e) => setQ(e.target.value)} className="mobile-input mb-3" />
+    <div className="bg-black min-h-[100dvh] flex flex-col">
+      <div className="px-3 py-3 sm:px-4 sm:py-4 border-b border-white/10 flex items-center gap-3">
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-heading text-white">Messages</h1>
+        <div className="flex items-center gap-1 bg-white/5 rounded p-1">
+          <button onClick={()=>setTab('coach')} className={`px-2 py-1 text-xs rounded ${tab==='coach'?'bg-gold text-black':'text-white/70 hover:bg-white/10'}`}>Coach</button>
+          <button onClick={()=>setTab('community')} className={`px-2 py-1 text-xs rounded ${tab==='community'?'bg-gold text-black':'text-white/70 hover:bg-white/10'}`}>Community</button>
+        </div>
+      </div>
+      {tab==='community' && <div className="h-px bg-white/10" />}
+      {tab==='coach' && (
+        <div className="p-3 sm:p-4">
+          <Input placeholder="Search clients..." value={q} onChange={(e) => setQ(e.target.value)} className="mobile-input" />
+        </div>
+      )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
+      {tab==='coach' ? (
+      <div className="flex-1 overflow-y-auto p-3 sm:p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
         {filtered.map((t) => {
           const c = clients[t.client_id];
           const title = c?.full_name || c?.email || 'Client';
           const when = t.last_message_at ? new Date(t.last_message_at).toLocaleString() : new Date(t.created_at).toLocaleString();
           const unread = isUnread(t);
           return (
-            <Card key={t.id} className="mobile-card relative cursor-pointer" onClick={() => router.push(`/coach/messages/${t.id}`)}>
+            <Card key={t.id} className="mobile-card relative cursor-pointer p-0 border-white/10 h-auto min-h-0" onClick={() => router.push(`/coach/messages/${t.id}`)} style={{ minHeight: 'auto' }}>
               {unread && (
-                <div className="absolute top-2 right-2 w-5 h-5 bg-red-600 rounded-full flex items-center justify-center text-white text-[10px] font-bold">1</div>
+                <div className="absolute top-1.5 right-1.5 w-3.5 h-3.5 bg-red-600 rounded-full flex items-center justify-center text-white text-[9px] font-bold">•</div>
               )}
-              <CardHeader>
-                <CardTitle className="text-white text-base">{title}</CardTitle>
+              <CardHeader className="!p-2 sm:!p-2 !space-y-0">
+                <CardTitle className="text-white text-[12px] sm:text-sm leading-tight truncate">{title}</CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="text-white/60 text-xs mb-2">Last activity: {when}</p>
-                <span className="text-gold text-sm underline">Open Thread</span>
+              <CardContent className="!p-2 pt-0">
+                <p className="text-white/60 text-[10px] truncate">{when}</p>
               </CardContent>
             </Card>
           );
         })}
       </div>
-
-      {filtered.length === 0 && (
-        <p className="text-white/60 text-sm mt-4">No threads yet.</p>
+      ) : (
+        <>
+          <div ref={cListRef} className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 pb-28">
+            {cLoading ? (
+              <div className="text-white/60 text-sm">Loading…</div>
+            ) : cMsgs.length === 0 ? (
+              <div className="text-center py-12">
+                <MessageCircle className="w-8 h-8 sm:w-12 sm:h-12 text-gold mx-auto mb-4 opacity-50" />
+                <p className="text-white/60 text-sm">No messages yet</p>
+                <p className="text-white/60 text-xs">Say hello to the community</p>
+              </div>
+            ) : (
+              cMsgs.map((m:any)=>{
+                const isOwn = m.sender_id === profile?.id;
+                return (
+                  <div key={m.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`flex items-end space-x-2 max-w-xs lg:max-w-md ${isOwn ? 'flex-row-reverse space-x-reverse' : ''}`}>
+                      {!isOwn && (
+                        <Avatar className="w-6 h-6 sm:w-8 h-8">
+                          {m.sender?.avatar_url ? <AvatarImage src={m.sender.avatar_url} alt={m.sender.full_name || 'User'} /> : null}
+                          <AvatarFallback className="text-xs bg-gold text-black">{(m.sender?.full_name || m.sender?.email || 'U').slice(0,1)}</AvatarFallback>
+                        </Avatar>
+                      )}
+                      <div className={`px-3 py-2 rounded-2xl ${isOwn ? 'bg-gold text-black' : 'bg-white/10 text-white'}`}>
+                        {!isOwn && <p className="text-[11px] text-white/60 mb-1">{m.sender?.full_name || m.sender?.email || 'User'}</p>}
+                        <p className="text-xs sm:text-sm">{m.body}</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+          <div className="border-t border-white/10 p-3 sm:p-4 flex items-center gap-2 bg-black sticky bottom-0 pb-[max(0px,env(safe-area-inset-bottom))]">
+            <Input value={cText} onChange={(e)=>setCText(e.target.value)} placeholder="Type a message…" className="mobile-input flex-1" />
+            <Button onClick={sendCommunity} disabled={!cText.trim()} className="bg-gold hover:bg-gold/90 text-black w-8 h-8 p-0"><Send className="w-4 h-4 text-black" /></Button>
+          </div>
+        </>
       )}
     </div>
   );

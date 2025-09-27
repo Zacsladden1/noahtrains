@@ -5,10 +5,11 @@ import { useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Flame, Egg, Wheat, Droplet, Droplets, Coffee, Sun, Sunset, Apple, CircleDot, ChevronDown, Phone, ChevronLeft, ChevronRight, MessageCircle } from 'lucide-react';
+import { Flame, Egg, Wheat, Droplet, Droplets, Coffee, Sun, Sunset, Apple, CircleDot, ChevronDown, Phone, ChevronLeft, ChevronRight, MessageCircle, Plus, Trash2 } from 'lucide-react';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { supabase } from '@/lib/supabase';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 export default function CoachClientDetailPage() {
   const params = useParams();
@@ -21,6 +22,54 @@ export default function CoachClientDetailPage() {
   const [upcomingWorkout, setUpcomingWorkout] = useState<any | null>(null);
   const [workoutsForDay, setWorkoutsForDay] = useState<any[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [wkName, setWkName] = useState('');
+  const [savingWorkout, setSavingWorkout] = useState(false);
+  const [exRows, setExRows] = useState<Array<{ exercise: string; sets: number; reps: number; weight: number }>>([{ exercise: '', sets: 3, reps: 10, weight: 0 }]);
+
+  const updateRow = (idx: number, patch: Partial<{ exercise: string; sets: number; reps: number; weight: number }>) => {
+    setExRows(prev => prev.map((r, i) => i === idx ? { ...r, ...patch } : r));
+  };
+  const removeRow = (idx: number) => setExRows(prev => prev.filter((_, i) => i !== idx));
+
+  const saveAssigned = async () => {
+    if (!clientId || !wkName.trim()) return;
+    setSavingWorkout(true);
+    try {
+      const { data: w, error } = await supabase
+        .from('workouts')
+        .insert({ user_id: clientId, name: wkName.trim(), status: 'planned', created_at: new Date(`${selectedDate}T08:00:00`).toISOString() })
+        .select('id')
+        .single();
+      if (error) throw error;
+      const wkId = w.id;
+      const rows: any[] = [];
+      exRows.forEach((r) => {
+        for (let s = 1; s <= Math.max(1, Number(r.sets || 0)); s++) {
+          rows.push({ workout_id: wkId, set_index: s, reps: Number(r.reps || 0), weight_kg: Number(r.weight || 0), notes: r.exercise || null });
+        }
+      });
+      if (rows.length) await supabase.from('workout_sets').insert(rows);
+      setAssignOpen(false);
+      setWkName('');
+      setExRows([{ exercise: '', sets: 3, reps: 10, weight: 0 }]);
+      // refresh day list
+      const from = `${selectedDate}T00:00:00`;
+      const to = `${selectedDate}T23:59:59`;
+      const { data: wday } = await supabase
+        .from('workouts')
+        .select('id, name, status, created_at, completed_at')
+        .eq('user_id', clientId)
+        .gte('created_at', from)
+        .lte('created_at', to)
+        .order('created_at', { ascending: true });
+      setWorkoutsForDay(wday || []);
+    } catch (e) {
+      alert('Failed to save workout');
+    } finally {
+      setSavingWorkout(false);
+    }
+  };
 
   useEffect(() => {
     if (!clientId) return;
@@ -153,6 +202,56 @@ export default function CoachClientDetailPage() {
         </div>
       </div>
 
+      {/* Assign workout */}
+      <div className="mb-3">
+        <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
+          <DialogTrigger asChild>
+            <Button className="bg-gold hover:bg-gold/90 text-black flex items-center gap-2"><Plus className="w-4 h-4" /> Assign workout for {new Date(selectedDate).toLocaleDateString()}</Button>
+          </DialogTrigger>
+          <DialogContent className="bg-black border border-white/20 text-white max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Assign Workout</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div>
+                <label className="text-white/80 text-sm">Title</label>
+                <Input value={wkName} onChange={(e)=>setWkName(e.target.value)} className="mobile-input mt-1" placeholder="Push Day" />
+              </div>
+              <div className="space-y-3">
+                <div className="text-white/80 text-sm">Exercises</div>
+                {exRows.map((row, idx) => (
+                  <div key={idx} className="grid grid-cols-6 gap-2 items-end">
+                    <div className="col-span-2">
+                      <label className="text-white/70 text-xs">Exercise</label>
+                      <Input value={row.exercise} onChange={(e)=>updateRow(idx,{ exercise: e.target.value })} className="mobile-input mt-1" placeholder="Bench Press" />
+                    </div>
+                    <div>
+                      <label className="text-white/70 text-xs">Sets</label>
+                      <Input type="number" inputMode="numeric" value={row.sets} onChange={(e)=>updateRow(idx,{ sets: Number(e.target.value||0) })} className="mobile-input mt-1" />
+                    </div>
+                    <div>
+                      <label className="text-white/70 text-xs">Reps</label>
+                      <Input type="number" inputMode="numeric" value={row.reps} onChange={(e)=>updateRow(idx,{ reps: Number(e.target.value||0) })} className="mobile-input mt-1" />
+                    </div>
+                    <div>
+                      <label className="text-white/70 text-xs">Weight (kg)</label>
+                      <Input type="number" inputMode="decimal" value={row.weight} onChange={(e)=>updateRow(idx,{ weight: Number(e.target.value||0) })} className="mobile-input mt-1" />
+                    </div>
+                    <div className="flex justify-end">
+                      <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={()=>removeRow(idx)}><Trash2 className="w-4 h-4" /></Button>
+                    </div>
+                  </div>
+                ))}
+                <Button variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={()=>setExRows(prev=>[...prev,{ exercise:'', sets:3, reps:10, weight:0 }])}><Plus className="w-4 h-4 mr-1" /> Add exercise</Button>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={()=>setAssignOpen(false)}>Cancel</Button>
+                <Button className="bg-gold hover:bg-gold/90 text-black" disabled={savingWorkout || !wkName.trim()} onClick={saveAssigned}>{savingWorkout? 'Saving…':'Save'}</Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
       <div className="flex gap-2 mb-3">
         <Button
           variant="outline"
@@ -280,10 +379,12 @@ export default function CoachClientDetailPage() {
           ) : (
             <div className="space-y-2">
               {workoutsForDay.map((w)=> (
-                <div key={w.id} className="flex items-center justify-between p-2 bg-white/10 rounded">
-                  <div className="text-white text-sm truncate max-w-[220px]">{w.name || 'Workout'}</div>
-                  <div className="text-white/60 text-xs capitalize">{(w.status || '').replace('_',' ')}</div>
-                </div>
+                <a key={w.id} href={`/coach/workouts/${w.id}`} className="block">
+                  <div className="flex items-center justify-between p-2 bg-white/10 rounded hover:bg-white/15">
+                    <div className="text-white text-sm truncate max-w-[220px]">{w.name || 'Workout'}</div>
+                    <div className="text-white/60 text-xs capitalize">{(w.status || '').replace('_',' ')}</div>
+                  </div>
+                </a>
               ))}
             </div>
           )}
