@@ -217,8 +217,8 @@ export default function MessagesPage() {
         .insert({ thread_id: threadId, sender_id: profile.id, body });
       if (error) throw error;
       await supabase.from('message_threads').update({ last_message_at: new Date().toISOString(), last_viewed_by_client_at: new Date().toISOString() }).eq('id', threadId);
-      // Notify coach devices
-      try { await fetch('/api/push/message', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ threadId }) }); } catch {}
+      // Notify the other party, include sender and preview
+      try { await fetch('/api/push/message', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ threadId, senderId: profile.id, preview: body.slice(0, 100) }) }); } catch {}
       setNewMessage('');
       await fetchMessages(threadId);
     } catch (e) {
