@@ -162,7 +162,7 @@ export default function CoachMessagesPage() {
                 <p className="text-white/60 text-xs">Say hello to the community</p>
               </div>
             ) : (
-              cMsgs.map((m:any)=>{
+              cMsgs.filter((v, i, a)=>a.findIndex(x=>x.id===v.id)===i).map((m:any)=>{
                 const isOwn = m.sender_id === profile?.id;
                 return (
                   <div key={m.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
@@ -176,6 +176,11 @@ export default function CoachMessagesPage() {
                       <div className={`px-3 py-2 rounded-2xl ${isOwn ? 'bg-gold text-black' : 'bg-white/10 text-white'}`}>
                         {!isOwn && <p className="text-[11px] text-white/60 mb-1">{m.sender?.full_name || m.sender?.email || 'User'}</p>}
                         <p className="text-xs sm:text-sm">{m.body}</p>
+                        { (isOwn || profile?.role==='coach' || profile?.role==='admin') && (
+                          <div className="mt-1 text-right">
+                            <button className="text-[10px] underline text-white/70" onClick={async ()=>{ try { await supabase.from('group_messages').delete().eq('id', m.id); await fetchCommunity(); } catch (e) { console.error(e); } }}>Delete</button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

@@ -21,6 +21,17 @@ export default function CoachThreadPage() {
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
 
+  const dedupeById = (items: any[]) => {
+    const seen = new Set<string>();
+    const out: any[] = [];
+    for (const it of items || []) {
+      if (!it?.id || seen.has(it.id)) continue;
+      seen.add(it.id);
+      out.push(it);
+    }
+    return out.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  };
+
   useEffect(() => {
     if (!threadId) return;
     (async () => {
@@ -34,7 +45,7 @@ export default function CoachThreadPage() {
       .select('id, sender_id, body, created_at, attachments:attachments(id, storage_path, file_name, mime_type, file_size)')
         .eq('thread_id', threadId)
         .order('created_at', { ascending: true });
-      setMessages(msgs || []);
+      setMessages(dedupeById(msgs || []));
       requestAnimationFrame(() => {
         try { if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight; } catch {}
       });
@@ -47,7 +58,11 @@ export default function CoachThreadPage() {
     const channel = supabase
       .channel(`coach-thread-${threadId}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `thread_id=eq.${threadId}` }, (payload) => {
-        setMessages((prev) => [...prev, payload.new]);
+        setMessages((prev) => {
+          const arr = Array.isArray(prev) ? prev : [];
+          if (arr.some((m: any) => m.id === payload.new.id)) return arr;
+          return dedupeById([...arr, payload.new]);
+        });
       })
       .subscribe();
     return () => {
@@ -104,7 +119,7 @@ export default function CoachThreadPage() {
       .select('id, sender_id, body, created_at')
       .eq('thread_id', threadId)
       .order('created_at', { ascending: true });
-    setMessages(msgs || []);
+    setMessages(dedupeById(msgs || []));
     await supabase.from('message_threads').update({ last_message_at: new Date().toISOString() }).eq('id', threadId);
     // mark viewed after sending
     try { await supabase.from('message_threads').update({ last_viewed_by_coach_at: new Date().toISOString() }).eq('id', threadId); } catch {}
