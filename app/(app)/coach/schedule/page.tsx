@@ -130,12 +130,25 @@ export default function CoachSchedulePage() {
           <CardTitle className="text-white text-base">View</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            <div className="inline-flex rounded-lg overflow-hidden border border-white/20">
-              <button onClick={()=>setMode('day')} className={`px-3 py-2 text-sm ${mode==='day' ? 'bg-gold text-black' : 'text-white/80 hover:bg-white/10'}`}>Day</button>
-              <button onClick={()=>setMode('week')} className={`px-3 py-2 text-sm ${mode==='week' ? 'bg-gold text-black' : 'text-white/80 hover:bg-white/10'}`}>Week</button>
+          <div className="flex flex-col items-center gap-3">
+            <div className="inline-flex h-10 items-center justify-center rounded-full border border-white/20 bg-black/40 p-1">
+              <button
+                onClick={()=>setMode('day')}
+                className={`px-4 py-1.5 rounded-full text-sm min-w-[72px] ${mode==='day' ? 'bg-gold text-black shadow' : 'text-white/80 hover:bg-white/10'}`}
+                aria-pressed={mode==='day'}
+              >Day</button>
+              <button
+                onClick={()=>setMode('week')}
+                className={`px-4 py-1.5 rounded-full text-sm min-w-[72px] ${mode==='week' ? 'bg-gold text-black shadow' : 'text-white/80 hover:bg-white/10'}`}
+                aria-pressed={mode==='week'}
+              >Week</button>
             </div>
-            <input type="date" value={date} onChange={(e)=>setDate(e.target.value)} className="mobile-input w-full sm:w-auto" />
+            <input
+              type="date"
+              value={date}
+              onChange={(e)=>setDate(e.target.value)}
+              className="mobile-input h-10 w-[200px] text-center"
+            />
           </div>
         </CardContent>
       </Card>
