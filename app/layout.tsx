@@ -60,7 +60,9 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black" />
         <meta name="apple-mobile-web-app-title" content="Noahhtrains" />
+        <meta name="theme-color" content="#000000" />
         <link rel="manifest" href={`/site.webmanifest?v=${Date.now()}`} />
+        <meta httpEquiv="Cache-Control" content="no-store, must-revalidate" />
         {isProd && (
           // Early chunk error handler: registers before any client bundle executes (prod only)
           <script

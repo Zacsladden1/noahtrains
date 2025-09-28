@@ -10,6 +10,7 @@ import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/component
 import { supabase } from '@/lib/supabase';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Calendar, Check, X } from 'lucide-react';
 
 export default function CoachClientDetailPage() {
   const params = useParams();
@@ -26,6 +27,13 @@ export default function CoachClientDetailPage() {
   const [wkName, setWkName] = useState('');
   const [savingWorkout, setSavingWorkout] = useState(false);
   const [exRows, setExRows] = useState<Array<{ exercise: string; sets: number; reps: number; weight: number }>>([{ exercise: '', sets: 3, reps: 10, weight: 0 }]);
+  const [createExOpen, setCreateExOpen] = useState<{ open: boolean; idx: number | null }>({ open: false, idx: null });
+  const [newExName, setNewExName] = useState('');
+  const [wkDows, setWkDows] = useState<number[]>(() => [new Date().getDay()]); // allow multiple days
+  const [repeatWeekly, setRepeatWeekly] = useState<boolean>(true);
+  const [repeatWeeks, setRepeatWeeks] = useState<number>(12);
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [sessLoading, setSessLoading] = useState(false);
 
   const updateRow = (idx: number, patch: Partial<{ exercise: string; sets: number; reps: number; weight: number }>) => {
     setExRows(prev => prev.map((r, i) => i === idx ? { ...r, ...patch } : r));
@@ -36,24 +44,46 @@ export default function CoachClientDetailPage() {
     if (!clientId || !wkName.trim()) return;
     setSavingWorkout(true);
     try {
-      const { data: w, error } = await supabase
-        .from('workouts')
-        .insert({ user_id: clientId, name: wkName.trim(), status: 'planned', created_at: new Date(`${selectedDate}T08:00:00`).toISOString() })
-        .select('id')
-        .single();
-      if (error) throw error;
-      const wkId = w.id;
-      const rows: any[] = [];
-      exRows.forEach((r) => {
-        for (let s = 1; s <= Math.max(1, Number(r.sets || 0)); s++) {
-          rows.push({ workout_id: wkId, set_index: s, reps: Number(r.reps || 0), weight_kg: Number(r.weight || 0), notes: r.exercise || null });
+      const base = new Date(selectedDate + 'T00:00:00');
+      const selectedDows = wkDows.length ? wkDows : [base.getDay()];
+      const weeks = repeatWeekly ? Math.max(1, repeatWeeks) : 1;
+
+      // Compute dates for all occurrences
+      const dates: Date[] = [];
+      for (let w = 0; w < weeks; w++) {
+        for (const d of selectedDows) {
+          const diff = (d - base.getDay() + 7) % 7;
+          const dt = new Date(base);
+          dt.setDate(base.getDate() + diff + w * 7);
+          dates.push(dt);
         }
-      });
-      if (rows.length) await supabase.from('workout_sets').insert(rows);
+      }
+      dates.sort((a,b)=>a.getTime()-b.getTime());
+
+      // Create workouts in bulk
+      const payload = dates.map((dt)=>({ user_id: clientId, name: wkName.trim(), status: 'planned', created_at: new Date(dt.toISOString().slice(0,10)+'T08:00:00').toISOString() }));
+      const { data: created, error } = await supabase
+        .from('workouts')
+        .insert(payload)
+        .select('id, created_at');
+      if (error) throw error;
+
+      // Insert sets for each workout
+      const setRows: any[] = [];
+      for (const w of created || []) {
+        exRows.forEach((r) => {
+          for (let s = 1; s <= Math.max(1, Number(r.sets || 0)); s++) {
+            setRows.push({ workout_id: w.id, set_index: s, reps: Number(r.reps || 0), weight_kg: Number(r.weight || 0), notes: r.exercise || null });
+          }
+        });
+      }
+      if (setRows.length) await supabase.from('workout_sets').insert(setRows);
+
       setAssignOpen(false);
       setWkName('');
       setExRows([{ exercise: '', sets: 3, reps: 10, weight: 0 }]);
-      // refresh day list
+      setWkDows([new Date().getDay()]);
+      // refresh day list for current selected day
       const from = `${selectedDate}T00:00:00`;
       const to = `${selectedDate}T23:59:59`;
       const { data: wday } = await supabase
@@ -119,6 +149,17 @@ export default function CoachClientDetailPage() {
         .lte('created_at', to)
         .order('created_at', { ascending: true });
       setWorkoutsForDay(wday || []);
+
+      // Load sessions for this client
+      setSessLoading(true);
+      try {
+        const { data: s } = await supabase
+          .from('sessions')
+          .select('id, starts_at, ends_at, status, notes, coach_id, client_id')
+          .eq('client_id', clientId)
+          .order('starts_at', { ascending: true });
+        setSessions(s || []);
+      } finally { setSessLoading(false); }
     })();
   }, [clientId, selectedDate]);
 
@@ -189,6 +230,19 @@ export default function CoachClientDetailPage() {
     }
   };
 
+  const approveSession = async (id: string) => {
+    try {
+      await supabase.from('sessions').update({ status: 'approved' }).eq('id', id);
+      setSessions(prev => prev.map(s => s.id === id ? { ...s, status: 'approved' } : s));
+    } catch {}
+  };
+  const cancelSession = async (id: string) => {
+    try {
+      await supabase.from('sessions').update({ status: 'cancelled' }).eq('id', id);
+      setSessions(prev => prev.map(s => s.id === id ? { ...s, status: 'cancelled' } : s));
+    } catch {}
+  };
+
   return (
     <div className="mobile-padding mobile-spacing bg-black min-h-screen">
       <div className="flex items-center gap-3 mb-3">
@@ -208,34 +262,59 @@ export default function CoachClientDetailPage() {
           <DialogTrigger asChild>
             <Button className="bg-gold hover:bg-gold/90 text-black flex items-center gap-2"><Plus className="w-4 h-4" /> Assign workout for {new Date(selectedDate).toLocaleDateString()}</Button>
           </DialogTrigger>
-          <DialogContent className="bg-black border border-white/20 text-white max-w-2xl">
+          <DialogContent className="bg-black border border-white/20 text-white max-w-2xl max-h-[85vh] sm:max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Assign Workout</DialogTitle>
             </DialogHeader>
             <div className="space-y-3">
-              <div>
-                <label className="text-white/80 text-sm">Title</label>
-                <Input value={wkName} onChange={(e)=>setWkName(e.target.value)} className="mobile-input mt-1" placeholder="Push Day" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-white/80 text-sm">Title</label>
+                  <Input value={wkName} onChange={(e)=>setWkName(e.target.value)} className="mobile-input mt-1 h-10" placeholder="Push Day" />
+                </div>
+                <div>
+                  <label className="text-white/80 text-sm">Day(s) of week</label>
+                  <div className="mt-1 grid grid-cols-7 gap-1">
+                    {[ 'Sun','Mon','Tue','Wed','Thu','Fri','Sat' ].map((d, i)=> (
+                      <button key={i} type="button" onClick={()=> setWkDows(prev=> prev.includes(i) ? prev.filter(x=>x!==i) : [...prev, i]) } className={`px-2 py-1 text-xs rounded-md border transition-colors ${wkDows.includes(i)?'bg-gold text-black border-gold':'border-white/20 text-white/70 hover:bg-white/10'}`}>{d}</button>
+                    ))}
+                  </div>
+                  <div className="mt-2 flex items-center gap-2">
+                    <label className="text-white/70 text-xs">Repeat weekly</label>
+                    <input type="checkbox" checked={repeatWeekly} onChange={(e)=>setRepeatWeekly(e.target.checked)} />
+                    {repeatWeekly && (
+                      <>
+                        <span className="text-white/70 text-xs">for</span>
+                        <input type="number" min={1} max={52} value={repeatWeeks} onChange={(e)=>setRepeatWeeks(Math.max(1, Number(e.target.value||12)))} className="mobile-input h-8 w-16 text-center" />
+                        <span className="text-white/70 text-xs">weeks</span>
+                      </>
+                    )}
+                  </div>
+                </div>
               </div>
               <div className="space-y-3">
                 <div className="text-white/80 text-sm">Exercises</div>
                 {exRows.map((row, idx) => (
-                  <div key={idx} className="grid grid-cols-6 gap-2 items-end">
-                    <div className="col-span-2">
+                  <div key={idx} className="grid grid-cols-1 sm:grid-cols-7 gap-2 items-end p-2 rounded-md bg-white/5 border border-white/10">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/10 text-white/80 text-sm">{idx+1}</div>
+                    <div className="sm:col-span-2">
                       <label className="text-white/70 text-xs">Exercise</label>
-                      <Input value={row.exercise} onChange={(e)=>updateRow(idx,{ exercise: e.target.value })} className="mobile-input mt-1" placeholder="Bench Press" />
+                      <div className="flex gap-2 mt-1">
+                        <Input value={row.exercise} onChange={(e)=>updateRow(idx,{ exercise: e.target.value })} className="mobile-input h-10 w-full" placeholder="Bench Press" />
+                        <Button variant="outline" className="border-white/30 text-white hover:bg-white/10 h-10 whitespace-nowrap" type="button" onClick={()=>{ setCreateExOpen({ open: true, idx }); setNewExName(row.exercise || ''); }}>Create</Button>
+                      </div>
                     </div>
                     <div>
                       <label className="text-white/70 text-xs">Sets</label>
-                      <Input type="number" inputMode="numeric" value={row.sets} onChange={(e)=>updateRow(idx,{ sets: Number(e.target.value||0) })} className="mobile-input mt-1" />
+                      <Input type="number" inputMode="numeric" value={row.sets} onChange={(e)=>updateRow(idx,{ sets: Number(e.target.value||0) })} className="mobile-input mt-1 h-10 w-full" />
                     </div>
                     <div>
                       <label className="text-white/70 text-xs">Reps</label>
-                      <Input type="number" inputMode="numeric" value={row.reps} onChange={(e)=>updateRow(idx,{ reps: Number(e.target.value||0) })} className="mobile-input mt-1" />
+                      <Input type="number" inputMode="numeric" value={row.reps} onChange={(e)=>updateRow(idx,{ reps: Number(e.target.value||0) })} className="mobile-input mt-1 h-10 w-full" />
                     </div>
                     <div>
                       <label className="text-white/70 text-xs">Weight (kg)</label>
-                      <Input type="number" inputMode="decimal" value={row.weight} onChange={(e)=>updateRow(idx,{ weight: Number(e.target.value||0) })} className="mobile-input mt-1" />
+                      <Input type="number" inputMode="decimal" value={row.weight} onChange={(e)=>updateRow(idx,{ weight: Number(e.target.value||0) })} className="mobile-input mt-1 h-10 w-full" />
                     </div>
                     <div className="flex justify-end">
                       <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={()=>removeRow(idx)}><Trash2 className="w-4 h-4" /></Button>
@@ -247,6 +326,29 @@ export default function CoachClientDetailPage() {
               <div className="flex justify-end gap-2">
                 <Button variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={()=>setAssignOpen(false)}>Cancel</Button>
                 <Button className="bg-gold hover:bg-gold/90 text-black" disabled={savingWorkout || !wkName.trim()} onClick={saveAssigned}>{savingWorkout? 'Saving…':'Save'}</Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+        {/* Create Exercise Inline Dialog */}
+        <Dialog open={createExOpen.open} onOpenChange={(o)=>setCreateExOpen({ open: o, idx: createExOpen.idx })}>
+          <DialogContent className="bg-black border border-white/20 text-white max-w-md max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Create Exercise</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div>
+                <label className="text-white/80 text-sm">Exercise name</label>
+                <Input value={newExName} onChange={(e)=>setNewExName(e.target.value)} className="mobile-input mt-1" placeholder="e.g., Incline Bench Press" />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={()=>setCreateExOpen({ open:false, idx:null })}>Cancel</Button>
+                <Button className="bg-gold hover:bg-gold/90 text-black" onClick={()=>{
+                  const idx = createExOpen.idx;
+                  if (idx==null) { setCreateExOpen({open:false, idx:null}); return; }
+                  setExRows(prev => prev.map((r,i)=> i===idx ? { ...r, exercise: newExName } : r));
+                  setCreateExOpen({ open:false, idx:null });
+                }}>Save</Button>
               </div>
             </div>
           </DialogContent>
@@ -430,6 +532,42 @@ export default function CoachClientDetailPage() {
                   </div>
                 );
               })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Sessions */}
+      <Card className="mobile-card mt-4">
+        <CardHeader>
+          <CardTitle className="text-white text-base flex items-center gap-2"><Calendar className="w-4 h-4 text-gold" /> Sessions</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {sessLoading ? (
+            <p className="text-white/60 text-sm">Loading…</p>
+          ) : sessions.length === 0 ? (
+            <p className="text-white/60 text-sm">No sessions yet</p>
+          ) : (
+            <div className="space-y-2">
+              {sessions.map(s => (
+                <div key={s.id} className="flex items-center justify-between p-2 bg-white/10 rounded">
+                  <div className="text-white text-sm">
+                    <div>{new Date(s.starts_at).toLocaleString()} — {Math.round((new Date(s.ends_at).getTime()-new Date(s.starts_at).getTime())/60000)}m</div>
+                    <div className="text-white/60 text-xs capitalize">{s.status}</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {s.status === 'pending' && (
+                      <>
+                        <Button size="sm" className="bg-gold hover:bg-gold/90 text-black" onClick={()=>approveSession(s.id)}><Check className="w-4 h-4 mr-1" /> Approve</Button>
+                        <Button size="sm" variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={()=>cancelSession(s.id)}><X className="w-4 h-4 mr-1" /> Cancel</Button>
+                      </>
+                    )}
+                    {s.status === 'approved' && (
+                      <Button size="sm" variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={()=>cancelSession(s.id)}><X className="w-4 h-4 mr-1" /> Cancel</Button>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </CardContent>

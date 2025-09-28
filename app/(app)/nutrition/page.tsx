@@ -25,7 +25,7 @@ import { FoodLogDialog, EditFoodLogDialog } from '@/components/nutrition/food-lo
 import { NutritionLog, WaterLog, NutritionTargets } from '@/types/supabase';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal, Settings as SettingsIcon, Trash2, Pencil } from 'lucide-react';
-import { MealPresetsDialog, Preset } from '@/components/nutrition/meal-presets-dialog';
+// Removed MealPresetsDialog for clients
 import { BarcodeScanner } from '@/components/nutrition/barcode-scanner';
 
 const mealTypes = [
@@ -449,34 +449,7 @@ export default function NutritionPage() {
                         </Button>
                       }
                     />
-                    <MealPresetsDialog
-                      onApply={async (preset: Preset, mult: number) => {
-                        await addFoodLog({
-                          meal: meal.id,
-                          food_name: preset.food_name,
-                          brand: null,
-                          serving_qty: (preset.serving_qty || 1) * mult,
-                          serving_unit: preset.serving_unit || 'serving',
-                          calories: Math.round((preset.calories || 0) * mult),
-                          protein_g: (preset.protein_g || 0) * mult,
-                          carbs_g: (preset.carbs_g || 0) * mult,
-                          fat_g: (preset.fat_g || 0) * mult,
-                          fiber_g: (preset.fiber_g || 0) * mult,
-                          sugar_g: (preset.sugar_g || 0) * mult,
-                          sodium_mg: Math.round((preset.sodium_mg || 0) * mult),
-                        } as any);
-                      }}
-                      trigger={
-                        <Button
-                          variant="outline"
-                          className="border-white/30 text-white hover:bg-white/10 text-xs sm:text-sm px-2 sm:px-3"
-                          size="sm"
-                        >
-                          <span className="hidden sm:inline">Presets</span>
-                          <span className="sm:hidden">Pre</span>
-                        </Button>
-                      }
-                    />
+                    {/* Presets removed for clients */}
                   </div>
                 </div>
               </CardHeader>
@@ -566,7 +539,7 @@ export default function NutritionPage() {
         </Card>
       )}
 
-      {/* Quick targets adjustment */}
+      {/* Quick targets adjustment (client read-only; coach can modify in coach view) */}
       {targets && (
       <Card className="mobile-card">
         <CardHeader>
@@ -576,19 +549,19 @@ export default function NutritionPage() {
           <div className="grid mobile-grid-4 gap-2 sm:gap-3">
             <div>
               <p className="text-xs text-white/60">Calories</p>
-              <Input type="number" value={targets.calories} onChange={(e) => saveTargets({ ...targets, calories: Number(e.target.value) })} className="mobile-input" />
+              <Input type="number" value={targets.calories} readOnly className="mobile-input cursor-not-allowed opacity-70" />
             </div>
             <div>
               <p className="text-xs text-white/60">Protein (g)</p>
-              <Input type="number" value={targets.protein} onChange={(e) => saveTargets({ ...targets, protein: Number(e.target.value) })} className="mobile-input" />
+              <Input type="number" value={targets.protein} readOnly className="mobile-input cursor-not-allowed opacity-70" />
             </div>
             <div>
               <p className="text-xs text-white/60">Carbs (g)</p>
-              <Input type="number" value={targets.carbs} onChange={(e) => saveTargets({ ...targets, carbs: Number(e.target.value) })} className="mobile-input" />
+              <Input type="number" value={targets.carbs} readOnly className="mobile-input cursor-not-allowed opacity-70" />
             </div>
             <div>
               <p className="text-xs text-white/60">Fat (g)</p>
-              <Input type="number" value={targets.fat} onChange={(e) => saveTargets({ ...targets, fat: Number(e.target.value) })} className="mobile-input" />
+              <Input type="number" value={targets.fat} readOnly className="mobile-input cursor-not-allowed opacity-70" />
             </div>
           </div>
         </CardContent>

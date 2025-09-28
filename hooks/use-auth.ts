@@ -197,7 +197,10 @@ export function useAuth() {
   };
 
   const resetPassword = async (email: string) => {
-    const { data, error } = await supabase.auth.resetPasswordForEmail(email);
+    // Send reset link to the current origin so it works in prod and dev
+    let redirectTo: string | undefined = undefined;
+    try { redirectTo = typeof window !== 'undefined' ? window.location.origin : undefined; } catch {}
+    const { data, error } = await supabase.auth.resetPasswordForEmail(email, redirectTo ? { redirectTo } : undefined as any);
     return { data, error };
   };
 

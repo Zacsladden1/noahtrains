@@ -68,8 +68,17 @@ export default function ClientWorkoutDetailPage() {
     try {
       setSaving(true);
       await persist();
-      await supabase.from('workouts').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', workoutId);
-      setWorkout((w: any) => ({ ...w, status: 'completed', completed_at: new Date().toISOString() }));
+      const completedAt = new Date().toISOString();
+      await supabase.from('workouts').update({ status: 'completed', completed_at: completedAt }).eq('id', workoutId);
+      setWorkout((w: any) => ({ ...w, status: 'completed', completed_at: completedAt }));
+      // Notify coach about completion
+      try {
+        const { data: rel } = await supabase.from('clients').select('coach_id').eq('client_id', (workout as any)?.user_id).maybeSingle();
+        const coachId = rel?.coach_id;
+        if (coachId) {
+          await fetch('/api/push/broadcast', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userIds: [coachId], payload: { title: 'Workout completed', body: `${(workout as any)?.name || 'Workout'} completed`, url: '/coach' } }) });
+        }
+      } catch {}
     } finally { setSaving(false); }
   };
 

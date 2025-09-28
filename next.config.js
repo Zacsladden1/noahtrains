@@ -22,7 +22,7 @@ const nextConfig = {
         // Disable caching for HTML/doc responses to avoid stale HTML referencing old chunks
         source: '/:path*',
         headers: [
-          { key: 'Cache-Control', value: 'no-store' },
+          { key: 'Cache-Control', value: 'no-store, must-revalidate' },
           // Disallow the app from being embedded and block any iframes by default
           { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'Content-Security-Policy', value: "frame-ancestors 'none'; frame-src 'none'" },

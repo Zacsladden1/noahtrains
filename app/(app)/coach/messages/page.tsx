@@ -71,6 +71,12 @@ export default function CoachMessagesPage() {
     try {
       const { data: g } = await supabase.from('group_threads').select('id').eq('is_global', true).maybeSingle();
       if (!g?.id) { setCMsgs([]); return; }
+      // Ensure coach is a member of the global thread (idempotent)
+      try {
+        if (profile?.id) {
+          await supabase.from('group_members').upsert({ thread_id: g.id, user_id: profile.id }, { onConflict: 'thread_id,user_id' });
+        }
+      } catch {}
       const { data } = await supabase
         .from('group_messages')
         .select('id, sender_id, body, created_at, sender:profiles(id, full_name, email, avatar_url)')
@@ -86,6 +92,7 @@ export default function CoachMessagesPage() {
       if (!cText.trim() || !profile?.id) return;
       const { data: g } = await supabase.from('group_threads').select('id').eq('is_global', true).maybeSingle();
       if (!g?.id) return;
+      try { await supabase.from('group_members').upsert({ thread_id: g.id, user_id: profile.id }, { onConflict: 'thread_id,user_id' }); } catch {}
       await supabase.from('group_messages').insert({ thread_id: g.id, sender_id: profile.id, body: cText.trim() });
       setCText('');
       await fetchCommunity();

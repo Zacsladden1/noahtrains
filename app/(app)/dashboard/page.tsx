@@ -8,7 +8,7 @@ import { TodaysWorkout } from '@/components/dashboard/todays-workout';
 import { MacroRings } from '@/components/nutrition/macro-rings';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, MessageCircle } from 'lucide-react';
+import { Plus, MessageCircle, Calendar, Clock } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Workout, NutritionLog } from '@/types/supabase';
 
@@ -298,6 +298,69 @@ export default function DashboardPage() {
     }
   };
 
+  // --- Session booking (client) ---
+  const [sessOpen, setSessOpen] = useState(false);
+  const [sessDate, setSessDate] = useState<string>(()=> new Date().toISOString().slice(0,16)); // datetime-local
+  const [sessDuration, setSessDuration] = useState<number>(30);
+  const [sessNotes, setSessNotes] = useState<string>('');
+  const [sessSaving, setSessSaving] = useState(false);
+  const [coachIdForBooking, setCoachIdForBooking] = useState<string | null>(null);
+  const [availByDow, setAvailByDow] = useState<Record<number, { start_time: string; end_time: string }>>({});
+
+  // Load assigned coach and availability once profile is ready or when date changes (to compute day-of-week)
+  useEffect(() => {
+    (async () => {
+      if (!profile?.id) return;
+      try {
+        const { data: rel } = await supabase.from('clients').select('coach_id').eq('client_id', profile.id).maybeSingle();
+        const coachId = rel?.coach_id || null;
+        setCoachIdForBooking(coachId);
+        if (coachId) {
+          const { data: slots } = await supabase
+            .from('coach_availability')
+            .select('dow, start_time, end_time')
+            .eq('coach_id', coachId);
+          const map: Record<number, { start_time: string; end_time: string }> = {};
+          (slots || []).forEach((r: any) => { map[r.dow] = { start_time: r.start_time, end_time: r.end_time }; });
+          setAvailByDow(map);
+        }
+      } catch {}
+    })();
+  }, [profile?.id]);
+
+  const createSession = async () => {
+    if (!profile?.id) return;
+    try {
+      setSessSaving(true);
+      // find assigned coach
+      const coachId = coachIdForBooking;
+      if (!coachId) { alert('No coach assigned'); setSessSaving(false); return; }
+      const starts = new Date(sessDate);
+      const ends = new Date(starts.getTime() + sessDuration * 60000);
+      // Validate against coach availability for that day if set
+      const dow = starts.getDay();
+      const av = availByDow[dow];
+      if (av && av.start_time && av.end_time) {
+        const mk = (t: string) => { const [hh, mm] = t.split(':').map(Number); const d = new Date(starts); d.setHours(hh||0, mm||0, 0, 0); return d; };
+        const avStart = mk(av.start_time);
+        const avEnd = mk(av.end_time);
+        if (!(starts >= avStart && ends <= avEnd)) {
+          alert(`Please pick a time between ${av.start_time} and ${av.end_time} for this day.`);
+          setSessSaving(false);
+          return;
+        }
+      }
+      const { error } = await supabase.from('sessions').insert({ coach_id: coachId, client_id: profile.id, starts_at: starts.toISOString(), ends_at: ends.toISOString(), status: 'pending', notes: sessNotes || null });
+      if (error) throw error;
+      setSessOpen(false);
+      setSessNotes('');
+    } catch (e:any) {
+      alert(e?.message || 'Failed to create session');
+    } finally {
+      setSessSaving(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-6 space-y-6">
@@ -487,6 +550,40 @@ export default function DashboardPage() {
               >
                 750ml
               </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Book a Session */}
+        <Card className="mobile-card">
+          <CardHeader>
+            <CardTitle className="text-base sm:text-lg text-white flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-gold" /> Book a Session
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div>
+              <label className="text-white/80 text-sm">Start</label>
+              <input type="datetime-local" value={sessDate} onChange={(e)=>setSessDate(e.target.value)} className="mobile-input mt-1 w-full" />
+            </div>
+            {(() => {
+              try {
+                const d = new Date(sessDate);
+                const av = availByDow[d.getDay()];
+                if (!av || !av.start_time || !av.end_time) return <div className="text-white/60 text-xs">Coach has no hours set for this day.</div>;
+                return <div className="text-white/70 text-xs">Coach available: {av.start_time} – {av.end_time}</div>;
+              } catch { return null; }
+            })()}
+            <div>
+              <label className="text-white/80 text-sm">Duration (minutes)</label>
+              <input type="number" inputMode="numeric" min={15} step={15} value={sessDuration} onChange={(e)=>setSessDuration(Number(e.target.value||30))} className="mobile-input mt-1 w-full" />
+            </div>
+            <div>
+              <label className="text-white/80 text-sm">Notes (optional)</label>
+              <textarea value={sessNotes} onChange={(e)=>setSessNotes(e.target.value)} className="mobile-input mt-1 w-full h-20" placeholder="What would you like to focus on?" />
+            </div>
+            <div className="flex justify-end">
+              <Button className="bg-gold hover:bg-gold/90 text-black" onClick={createSession} disabled={sessSaving}>{sessSaving ? 'Booking…' : 'Request Session'}</Button>
             </div>
           </CardContent>
         </Card>

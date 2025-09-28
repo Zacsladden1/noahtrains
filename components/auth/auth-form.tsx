@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useAuth } from '@/hooks/use-auth';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, CheckCircle, X } from 'lucide-react';
 
 const signInSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -33,7 +33,13 @@ type SignInForm = z.infer<typeof signInSchema>;
 type SignUpForm = z.infer<typeof signUpSchema>;
 
 export function AuthForm() {
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, resetPassword } = useAuth();
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  useEffect(() => {
+    if (!toastMsg) return;
+    const t = setTimeout(() => setToastMsg(null), 3000);
+    return () => clearTimeout(t);
+  }, [toastMsg]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -99,11 +105,22 @@ export function AuthForm() {
             alt="Noahhtrains"
             className="mx-auto mb-3 h-12 sm:h-14 md:h-16 w-auto drop-shadow-[0_0_20px_rgba(205,167,56,0.25)]"
           />
-          <h1 className="text-4xl font-heading text-white mb-2">Noahhtrains</h1>
+          <h1 className="text-3xl sm:text-4xl font-[var(--font-heading)] tracking-[0.35em] text-gold mb-2">NOAHHTRAINS</h1>
           <p className="text-white/70 text-sm">Premium Fitness Coaching</p>
         </div>
 
-      <Card className="bg-black border border-white/10 shadow-2xl">
+      {toastMsg && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50">
+          <div className="flex items-start gap-2 bg-gold text-black px-4 py-3 rounded-lg shadow-xl border border-black/10 animate-fade-in" role="status" aria-live="polite">
+            <CheckCircle className="w-4 h-4 mt-0.5" />
+            <div className="text-sm font-medium">{toastMsg}</div>
+            <button onClick={()=>setToastMsg(null)} className="ml-2 text-black/70 hover:text-black">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+      <Card className="bg-black border border-white/10 shadow-2xl relative">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-heading text-white">Welcome Back</CardTitle>
           <CardDescription>
@@ -187,6 +204,26 @@ export function AuthForm() {
                   {loading && <LoadingSpinner size="sm" className="mr-2" />}
                   Sign In
                 </Button>
+                <div className="flex items-center justify-between">
+                  <button
+                    type="button"
+                    className="text-xs text-gold hover:underline"
+                    onClick={async () => {
+                      const email = signInForm.getValues('email');
+                      if (!email) { setToastMsg('Enter your email above first'); return; }
+                      try {
+                        const { error } = await resetPassword(email);
+                        if (error) throw error;
+                        setToastMsg('If this email exists, a reset link has been sent.');
+                      } catch (e:any) {
+                        setToastMsg(e?.message || 'Unable to send reset link');
+                      }
+                    }}
+                  >
+                    Forgot password?
+                  </button>
+                </div>
+
               </form>
             </TabsContent>
 

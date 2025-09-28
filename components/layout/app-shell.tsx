@@ -105,7 +105,29 @@ export function AppShell({ children }: AppShellProps) {
   };
 
   const handleSignOut = async () => {
-    await signOut();
+    try { await signOut(); } catch {}
+    // Best-effort cleanup to avoid sticky sessions in a PWA context
+    try {
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.unregister()));
+      }
+    } catch {}
+    try {
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((k) => caches.delete(k)));
+      }
+    } catch {}
+    try { localStorage.clear(); } catch {}
+    try { sessionStorage.clear(); } catch {}
+    try {
+      const u = new URL('/', window.location.origin);
+      u.searchParams.set('v', Date.now().toString());
+      window.location.replace(u.toString());
+    } catch {
+      window.location.href = '/';
+    }
   };
 
   return (
@@ -115,7 +137,7 @@ export function AppShell({ children }: AppShellProps) {
         <div className="flex items-center justify-center h-16 px-4 border-b border-border">
           <div className="flex items-center gap-2">
             <img src="/no%20backround%20high%20quality%20logo%202.png" alt="Logo" className="h-6 w-auto" />
-            <h1 className="text-lg xl:text-xl font-heading text-white">Noahhtrains</h1>
+            <h1 className="text-base xl:text-lg font-[var(--font-heading)] tracking-[0.35em] text-gold">NOAHHTRAINS</h1>
           </div>
         </div>
         
@@ -181,7 +203,10 @@ export function AppShell({ children }: AppShellProps) {
           <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
           <aside className="absolute left-0 top-0 h-full w-72 sm:w-80 bg-black border-r border-white/20">
             <div className="flex items-center justify-between h-16 px-4 border-b border-white/20">
-              <h1 className="text-lg sm:text-xl font-heading text-white">Noahhtrains</h1>
+              <div className="flex items-center gap-2">
+                <img src="/no%20backround%20high%20quality%20logo%202.png" alt="Logo" className="h-5 w-auto" />
+                <h1 className="text-base sm:text-lg font-[var(--font-heading)] tracking-[0.35em] text-gold">NOAHHTRAINS</h1>
+              </div>
               <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(false)}>
                 <X className="w-5 h-5 text-white" />
               </Button>
@@ -222,7 +247,7 @@ export function AppShell({ children }: AppShellProps) {
           </Button>
           <div className="flex items-center gap-2 relative">
             <img src="/no%20backround%20high%20quality%20logo%202.png" alt="Logo" className="h-5 w-auto" />
-            <h1 className="text-base sm:text-lg font-heading text-white">Noahhtrains</h1>
+            <h1 className="text-base sm:text-lg font-[var(--font-heading)] tracking-[0.35em] text-gold">NOAHHTRAINS</h1>
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

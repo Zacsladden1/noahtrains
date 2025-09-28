@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, Bell, Video, BarChart3, MessageCircle } from 'lucide-react';
+import { Users, Bell, Video, BarChart3, MessageCircle, Calendar } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Card as UICard } from '@/components/ui/card';
@@ -102,6 +102,15 @@ export default function CoachHome() {
           </CardContent>
         </Card>
 
+        <Card className="mobile-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-white"><Calendar className="w-5 h-5 text-gold" /> Availability</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-white/60 text-sm mb-3">Set your weekly gym hours</p>
+            <Link href="/coach/availability"><Button variant="outline" className="w-full border-white/30 text-white hover:bg-white/10">Edit Availability</Button></Link>
+          </CardContent>
+        </Card>
         <Card className="mobile-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-white"><Video className="w-5 h-5 text-gold" /> Content Manager</CardTitle>
