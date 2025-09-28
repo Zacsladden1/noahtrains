@@ -165,6 +165,8 @@ input[type="date"].mobile-input,
 input[type="datetime-local"].mobile-input {
   color-scheme: dark;
   color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
+  caret-color: #ffffff;
 }
 
 /* WebKit time input inner fields */
@@ -177,6 +179,8 @@ input[type="time"].mobile-input::-webkit-datetime-edit-minute-field,
 input[type="time"].mobile-input::-webkit-datetime-edit-second-field,
 input[type="time"].mobile-input::-webkit-datetime-edit-ampm-field {
   color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
+  opacity: 1;
 }
 input[type="time"].mobile-input::-webkit-calendar-picker-indicator {
   filter: invert(1) opacity(0.8);

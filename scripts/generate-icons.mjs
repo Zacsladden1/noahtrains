@@ -3,7 +3,10 @@ import path from 'node:path';
 import sharp from 'sharp';
 
 const root = path.resolve(process.cwd());
-const srcPath = path.join(root, 'public', 'blackbg.png');
+const cliArg = process.argv[2];
+const srcPath = cliArg && fs.existsSync(cliArg)
+  ? path.resolve(cliArg)
+  : path.join(root, 'public', 'blackbg.png');
 const outDir = path.join(root, 'public');
 
 if (!fs.existsSync(srcPath)) {
