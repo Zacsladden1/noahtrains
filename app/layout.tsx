@@ -54,7 +54,7 @@ export default function RootLayout({
         <link
           rel="apple-touch-icon"
           sizes="180x180"
-          href="/Screenshot%202025-09-24%20at%2020.12.14.png"
+          href="/blackbg.png"
         />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="mobile-web-app-capable" content="yes" />
