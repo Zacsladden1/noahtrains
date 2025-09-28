@@ -55,8 +55,22 @@ export default function CoachAvailabilityPage() {
             {rows.map((r, i) => (
               <div key={i} className="grid grid-cols-3 gap-2 items-center">
                 <div className="text-white/80 text-sm">{DAYS[r.dow]}</div>
-                <input type="time" className="mobile-input" value={r.start_time} onChange={(e)=>setRows(prev=>prev.map((x,idx)=>idx===i?{...x,start_time:e.target.value}:x))} />
-                <input type="time" className="mobile-input" value={r.end_time} onChange={(e)=>setRows(prev=>prev.map((x,idx)=>idx===i?{...x,end_time:e.target.value}:x))} />
+                <input
+                  type="time"
+                  aria-label="Start time"
+                  className="h-11 sm:h-12 w-full appearance-none rounded-lg bg-white/10 border border-white/60 text-white placeholder:text-white/70 focus-visible:ring-2 focus-visible:ring-white/40 px-3"
+                  style={{ WebkitTextFillColor: '#ffffff', color: '#ffffff' }}
+                  value={r.start_time}
+                  onChange={(e)=>setRows(prev=>prev.map((x,idx)=>idx===i?{...x,start_time:e.target.value}:x))}
+                />
+                <input
+                  type="time"
+                  aria-label="End time"
+                  className="h-11 sm:h-12 w-full appearance-none rounded-lg bg-white/10 border border-white/60 text-white placeholder:text-white/70 focus-visible:ring-2 focus-visible:ring-white/40 px-3"
+                  style={{ WebkitTextFillColor: '#ffffff', color: '#ffffff' }}
+                  value={r.end_time}
+                  onChange={(e)=>setRows(prev=>prev.map((x,idx)=>idx===i?{...x,end_time:e.target.value}:x))}
+                />
               </div>
             ))}
           </div>
