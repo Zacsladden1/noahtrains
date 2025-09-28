@@ -111,6 +111,16 @@ export default function CoachHome() {
             <Link href="/coach/availability"><Button variant="outline" className="w-full border-white/30 text-white hover:bg-white/10">Edit Availability</Button></Link>
           </CardContent>
         </Card>
+
+        <Card className="mobile-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-white"><Calendar className="w-5 h-5 text-gold" /> Today’s Schedule</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-white/60 text-sm mb-3">View today’s client sessions</p>
+            <Link href="/coach/schedule"><Button variant="outline" className="w-full border-white/30 text-white hover:bg-white/10">Open Schedule</Button></Link>
+          </CardContent>
+        </Card>
         <Card className="mobile-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-white"><Video className="w-5 h-5 text-gold" /> Content Manager</CardTitle>

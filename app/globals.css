@@ -159,6 +159,29 @@
   @apply h-11 sm:h-12 bg-black border-white/30 text-white placeholder:text-white/50 focus:border-primary focus:ring-primary text-base;
 }
 
+/* Ensure native time/date inputs are visible on iOS dark mode */
+input[type="time"].mobile-input,
+input[type="date"].mobile-input,
+input[type="datetime-local"].mobile-input {
+  color-scheme: dark;
+  color: #ffffff;
+}
+
+/* WebKit time input inner fields */
+input[type="time"].mobile-input::-webkit-datetime-edit-fields-wrapper {
+  color: #ffffff;
+}
+input[type="time"].mobile-input::-webkit-datetime-edit-text,
+input[type="time"].mobile-input::-webkit-datetime-edit-hour-field,
+input[type="time"].mobile-input::-webkit-datetime-edit-minute-field,
+input[type="time"].mobile-input::-webkit-datetime-edit-second-field,
+input[type="time"].mobile-input::-webkit-datetime-edit-ampm-field {
+  color: #ffffff;
+}
+input[type="time"].mobile-input::-webkit-calendar-picker-indicator {
+  filter: invert(1) opacity(0.8);
+}
+
 .mobile-button {
   @apply h-11 sm:h-12 px-4 sm:px-6 text-sm sm:text-base font-semibold rounded-lg sm:rounded-xl;
 }
