@@ -21,30 +21,13 @@ const outputs = [
   { name: 'icon-512.png', size: 512 },
 ];
 
-// Zoom factor (>1 zooms in); and crop anchor to bottom to keep yellow baseline at bottom
-const ZOOM = 1.15; // adjust if you want tighter crop
-
-/**
- * Create a zoomed square crop from the bottom (south) so the yellow line sits near the bottom.
- */
+// Fit entire image inside with black letterbox to avoid cropping any edges
 async function generate(size) {
   const img = sharp(srcPath);
-  const { width, height } = await img.metadata();
-  if (!width || !height) throw new Error('Cannot read image dimensions');
-
-  const base = Math.min(width, height);
-  const cropSize = Math.round(base / ZOOM);
-
-  // Crop from bottom center
-  const left = Math.max(0, Math.floor((width - cropSize) / 2));
-  const top = Math.max(0, height - cropSize);
-
   const buf = await img
-    .extract({ left, top, width: Math.min(cropSize, width - left), height: Math.min(cropSize, height - top) })
-    .resize(size, size, { fit: 'cover' })
+    .resize(size, size, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 1 } })
     .png({ compressionLevel: 9 })
     .toBuffer();
-
   return buf;
 }
 

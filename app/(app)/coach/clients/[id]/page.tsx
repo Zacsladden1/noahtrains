@@ -32,6 +32,10 @@ export default function CoachClientDetailPage() {
   const [wkDows, setWkDows] = useState<number[]>(() => [new Date().getDay()]); // allow multiple days
   const [repeatWeekly, setRepeatWeekly] = useState<boolean>(true);
   const [repeatWeeks, setRepeatWeeks] = useState<number>(12);
+  // Flexible scheduling (not tied to weekdays)
+  const [flexibleSchedule, setFlexibleSchedule] = useState<boolean>(false);
+  const [flexSessions, setFlexSessions] = useState<number>(24);
+  const [flexGapDays, setFlexGapDays] = useState<number>(1);
   const [sessions, setSessions] = useState<any[]>([]);
   const [sessLoading, setSessLoading] = useState(false);
 
@@ -45,17 +49,26 @@ export default function CoachClientDetailPage() {
     setSavingWorkout(true);
     try {
       const base = new Date(selectedDate + 'T00:00:00');
-      const selectedDows = wkDows.length ? wkDows : [base.getDay()];
-      const weeks = repeatWeekly ? Math.max(1, repeatWeeks) : 1;
-
-      // Compute dates for all occurrences
-      const dates: Date[] = [];
-      for (let w = 0; w < weeks; w++) {
-        for (const d of selectedDows) {
-          const diff = (d - base.getDay() + 7) % 7;
+      let dates: Date[] = [];
+      if (flexibleSchedule) {
+        const count = Math.max(1, Number(flexSessions || 1));
+        const gap = Math.max(1, Number(flexGapDays || 1));
+        for (let i = 0; i < count; i++) {
           const dt = new Date(base);
-          dt.setDate(base.getDate() + diff + w * 7);
+          dt.setDate(base.getDate() + i * gap);
           dates.push(dt);
+        }
+      } else {
+        const selectedDows = wkDows.length ? wkDows : [base.getDay()];
+        const weeks = repeatWeekly ? Math.max(1, repeatWeeks) : 1;
+        // Compute dates for all occurrences by weekday across N weeks
+        for (let w = 0; w < weeks; w++) {
+          for (const d of selectedDows) {
+            const diff = (d - base.getDay() + 7) % 7;
+            const dt = new Date(base);
+            dt.setDate(base.getDate() + diff + w * 7);
+            dates.push(dt);
+          }
         }
       }
       dates.sort((a,b)=>a.getTime()-b.getTime());
@@ -83,6 +96,7 @@ export default function CoachClientDetailPage() {
       setWkName('');
       setExRows([{ exercise: '', sets: 3, reps: 10, weight: 0 }]);
       setWkDows([new Date().getDay()]);
+      setFlexibleSchedule(false);
       // refresh day list for current selected day
       const from = `${selectedDate}T00:00:00`;
       const to = `${selectedDate}T23:59:59`;
@@ -273,23 +287,48 @@ export default function CoachClientDetailPage() {
                   <Input value={wkName} onChange={(e)=>setWkName(e.target.value)} className="mobile-input mt-1 h-10" placeholder="Push Day" />
                 </div>
                 <div>
-                  <label className="text-white/80 text-sm">Day(s) of week</label>
-                  <div className="mt-1 grid grid-cols-7 gap-1">
-                    {[ 'Sun','Mon','Tue','Wed','Thu','Fri','Sat' ].map((d, i)=> (
-                      <button key={i} type="button" onClick={()=> setWkDows(prev=> prev.includes(i) ? prev.filter(x=>x!==i) : [...prev, i]) } className={`px-2 py-1 text-xs rounded-md border transition-colors ${wkDows.includes(i)?'bg-gold text-black border-gold':'border-white/20 text-white/70 hover:bg-white/10'}`}>{d}</button>
-                    ))}
+                  <div className="flex items-center justify-between">
+                    <label className="text-white/80 text-sm">Scheduling</label>
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className={`px-2 py-1 rounded-md border ${!flexibleSchedule? 'bg-gold text-black border-gold':'border-white/20 text-white/70'}`}>
+                        By weekday
+                      </span>
+                      <button type="button" className={`px-2 py-1 rounded-md border ${flexibleSchedule? 'bg-gold text-black border-gold':'border-white/20 text-white/70'}`} onClick={()=>setFlexibleSchedule(v=>!v)}>
+                        {flexibleSchedule ? 'Flexible' : 'Flexible'}
+                      </button>
+                    </div>
                   </div>
-                  <div className="mt-2 flex items-center gap-2">
-                    <label className="text-white/70 text-xs">Repeat weekly</label>
-                    <input type="checkbox" checked={repeatWeekly} onChange={(e)=>setRepeatWeekly(e.target.checked)} />
-                    {repeatWeekly && (
-                      <>
-                        <span className="text-white/70 text-xs">for</span>
-                        <input type="number" min={1} max={52} value={repeatWeeks} onChange={(e)=>setRepeatWeeks(Math.max(1, Number(e.target.value||12)))} className="mobile-input h-8 w-16 text-center" />
-                        <span className="text-white/70 text-xs">weeks</span>
-                      </>
-                    )}
-                  </div>
+                  {!flexibleSchedule ? (
+                    <>
+                      <div className="mt-1 grid grid-cols-7 gap-1">
+                        {[ 'Sun','Mon','Tue','Wed','Thu','Fri','Sat' ].map((d, i)=> (
+                          <button key={i} type="button" onClick={()=> setWkDows(prev=> prev.includes(i) ? prev.filter(x=>x!==i) : [...prev, i]) } className={`px-2 py-1 text-xs rounded-md border transition-colors ${wkDows.includes(i)?'bg-gold text-black border-gold':'border-white/20 text-white/70 hover:bg-white/10'}`}>{d}</button>
+                        ))}
+                      </div>
+                      <div className="mt-2 flex items-center gap-2">
+                        <label className="text-white/70 text-xs">Repeat weekly</label>
+                        <input type="checkbox" checked={repeatWeekly} onChange={(e)=>setRepeatWeekly(e.target.checked)} />
+                        {repeatWeekly && (
+                          <>
+                            <span className="text-white/70 text-xs">for</span>
+                            <input type="number" min={1} max={52} value={repeatWeeks} onChange={(e)=>setRepeatWeeks(Math.max(1, Number(e.target.value||12)))} className="mobile-input h-8 w-16 text-center" />
+                            <span className="text-white/70 text-xs">weeks</span>
+                          </>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-white/70 text-xs">Number of sessions</label>
+                        <input type="number" min={1} max={200} value={flexSessions} onChange={(e)=>setFlexSessions(Math.max(1, Number(e.target.value||24)))} className="mobile-input h-8 w-full text-center" />
+                      </div>
+                      <div>
+                        <label className="text-white/70 text-xs">Gap (days) between sessions</label>
+                        <input type="number" min={1} max={14} value={flexGapDays} onChange={(e)=>setFlexGapDays(Math.max(1, Number(e.target.value||1)))} className="mobile-input h-8 w-full text-center" />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="space-y-3">
