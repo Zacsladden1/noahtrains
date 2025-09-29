@@ -295,6 +295,9 @@ export default function MessagesPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <h1 className="text-white text-base sm:text-lg font-heading">Messages</h1>
+            {coachProfile && (
+              <span className="text-white/60 text-xs sm:text-sm">with {coachProfile.full_name || coachProfile.email}</span>
+            )}
             <div className="flex items-center gap-1 bg-white/5 rounded p-1">
               <button onClick={()=>setTab('coach')} className={`px-2 py-1 text-xs rounded ${tab==='coach'?'bg-gold text-black':'text-white/70 hover:bg-white/10'}`}>Coach</button>
               <button onClick={()=>setTab('community')} className={`px-2 py-1 text-xs rounded ${tab==='community'?'bg-gold text-black':'text-white/70 hover:bg-white/10'}`}>Community</button>

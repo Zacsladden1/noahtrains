@@ -576,7 +576,17 @@ export default function DashboardPage() {
             })()}
             <div>
               <label className="text-white/80 text-sm">Duration (minutes)</label>
-              <input type="number" inputMode="numeric" min={15} step={15} value={sessDuration} onChange={(e)=>setSessDuration(Number(e.target.value||30))} className="mobile-input mt-1 w-full" />
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={String(sessDuration)}
+                onChange={(e)=>{
+                  const v = (e.target.value || '').replace(/[^0-9]/g, '');
+                  setSessDuration(v === '' ? 0 : Number(v));
+                }}
+                className="mobile-input mt-1 w-full"
+              />
             </div>
             <div>
               <label className="text-white/80 text-sm">Notes (optional)</label>

@@ -48,15 +48,45 @@ export function FoodLogDialog({
     sodium_mg: 0,
   });
   const [showScanner, setShowScanner] = useState(false);
+  // String states for numeric inputs so users can delete/clear easily on mobile
+  const [servingQtyStr, setServingQtyStr] = useState<string>('1');
+  const [calStr, setCalStr] = useState<string>('0');
+  const [proStr, setProStr] = useState<string>('0');
+  const [carbStr, setCarbStr] = useState<string>('0');
+  const [fatStr, setFatStr] = useState<string>('0');
+  const [fiberStr, setFiberStr] = useState<string>('0');
+  const [sugarStr, setSugarStr] = useState<string>('0');
+  const [sodiumStr, setSodiumStr] = useState<string>('0');
 
   const update = (key: keyof FoodPayload, value: any) => {
     setForm((f) => ({ ...f, [key]: value }));
   };
 
   const handleAdd = async () => {
-    await onSubmit(form);
+    const toNum = (s: string, fallback = 0) => {
+      if (s == null) return fallback;
+      const v = parseFloat(String(s).replace(',', '.'));
+      return Number.isFinite(v) ? v : fallback;
+    };
+    const payload: FoodPayload = {
+      meal: form.meal,
+      food_name: form.food_name,
+      brand: form.brand,
+      serving_qty: toNum(servingQtyStr, 1),
+      serving_unit: form.serving_unit,
+      calories: toNum(calStr, 0),
+      protein_g: toNum(proStr, 0),
+      carbs_g: toNum(carbStr, 0),
+      fat_g: toNum(fatStr, 0),
+      fiber_g: toNum(fiberStr, 0),
+      sugar_g: toNum(sugarStr, 0),
+      sodium_mg: Math.round(toNum(sodiumStr, 0)),
+    };
+    await onSubmit(payload);
     setOpen(false);
     setForm({ ...form, food_name: '', brand: '', calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0, fiber_g: 0, sugar_g: 0, sodium_mg: 0 });
+    setServingQtyStr('1');
+    setCalStr('0'); setProStr('0'); setCarbStr('0'); setFatStr('0'); setFiberStr('0'); setSugarStr('0'); setSodiumStr('0');
   };
 
   const onBarcodeDetected = async (code: string) => {
@@ -75,14 +105,14 @@ export function FoodLogDialog({
         food_name: p.product_name || f.food_name,
         brand: p.brands || f.brand,
         serving_unit: p.serving_size || f.serving_unit,
-        calories: Number(nutr['energy-kcal_100g']) || f.calories,
-        protein_g: Number(nutr.proteins_100g) || f.protein_g,
-        carbs_g: Number(nutr.carbohydrates_100g) || f.carbs_g,
-        fat_g: Number(nutr.fat_100g) || f.fat_g,
-        fiber_g: Number(nutr.fiber_100g) || f.fiber_g,
-        sugar_g: Number(nutr.sugars_100g) || f.sugar_g,
-        sodium_mg: Math.round((Number(nutr.sodium_100g) || 0) * 1000),
       }));
+      setCalStr(String(Number(nutr['energy-kcal_100g']) || 0));
+      setProStr(String(Number(nutr.proteins_100g) || 0));
+      setCarbStr(String(Number(nutr.carbohydrates_100g) || 0));
+      setFatStr(String(Number(nutr.fat_100g) || 0));
+      setFiberStr(String(Number(nutr.fiber_100g) || 0));
+      setSugarStr(String(Number(nutr.sugars_100g) || 0));
+      setSodiumStr(String(Math.round((Number(nutr.sodium_100g) || 0) * 1000)));
       setShowScanner(false);
     } catch (e) {
       console.error('Barcode lookup failed', e);
@@ -96,7 +126,7 @@ export function FoodLogDialog({
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent className="bg-black border border-white/20 text-white p-0 sm:p-6 rounded-none sm:rounded-xl w-screen sm:w-auto max-w-none sm:max-w-lg h-[100dvh] sm:h-auto overflow-y-auto">
         <div className="min-h-full flex flex-col">
-          <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between sm:hidden">
+          <div className="px-4 py-3 border-b border-white/10 flex items-center gap-2 justify-start pr-12 sm:hidden">
             <DialogTitle className="text-base">Add Food</DialogTitle>
             <Button type="button" size="sm" variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={()=>setShowScanner(true)}>
               <Scan className="w-4 h-4 mr-2" /> Scan
@@ -129,44 +159,63 @@ export function FoodLogDialog({
                 <Label htmlFor="brand" className="text-white/80 text-sm">Brand (optional)</Label>
                 <Input id="brand" value={form.brand ?? ''} onChange={(e) => update('brand', e.target.value)} className="mobile-input mt-1 h-12 text-base" placeholder="e.g., Generic" />
               </div>
-
-              <div>
-                <Label className="text-white/80 text-sm">Serving qty</Label>
-                <Input type="number" inputMode="decimal" min={0} step="0.1" value={form.serving_qty ?? 1} onChange={(e) => update('serving_qty', Number(e.target.value))} className="mobile-input mt-1 h-12 text-base" />
-              </div>
-              <div>
-                <Label className="text-white/80 text-sm">Unit</Label>
-                <Input value={form.serving_unit ?? 'serving'} onChange={(e) => update('serving_unit', e.target.value)} className="mobile-input mt-1 h-12 text-base" />
+              <div className="md:col-span-2">
+                <Label className="text-white/80 text-sm">Serving</Label>
+                <div className="mt-1 grid grid-cols-[1fr_auto] gap-2 items-center">
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={servingQtyStr}
+                    onChange={(e)=>{
+                      const v = (e.target.value || '').replace(/[^0-9.,]/g, '').replace(',', '.');
+                      setServingQtyStr(v);
+                    }}
+                    className="mobile-input h-12 text-base w-full bg-white/10"
+                    placeholder="1"
+                  />
+                  <select value={form.serving_unit ?? 'serving'} onChange={(e)=>update('serving_unit', e.target.value)} className="h-12 text-base px-3 bg-black border border-white/30 rounded-md">
+                    <option value="g">g</option>
+                    <option value="kg">kg</option>
+                    <option value="ml">ml</option>
+                    <option value="l">l</option>
+                    <option value="cup">cup</option>
+                    <option value="tbsp">tbsp</option>
+                    <option value="tsp">tsp</option>
+                    <option value="serving">serving</option>
+                    <option value="slice">slice</option>
+                    <option value="piece">piece</option>
+                  </select>
+                </div>
               </div>
 
               <div>
                 <Label className="text-white/80 text-sm">Calories</Label>
-                <Input type="number" inputMode="numeric" min={0} step="1" value={form.calories} onChange={(e) => update('calories', Number(e.target.value))} className="mobile-input mt-1 h-12 text-base" />
+                <input type="text" inputMode="numeric" value={calStr} onChange={(e)=>setCalStr((e.target.value||'').replace(/[^0-9]/g,''))} className="mobile-input mt-1 h-12 text-base w-full bg-white/10" placeholder="0" />
               </div>
               <div>
                 <Label className="text-white/80 text-sm">Protein (g)</Label>
-                <Input type="number" inputMode="decimal" min={0} step="0.1" value={form.protein_g} onChange={(e) => update('protein_g', Number(e.target.value))} className="mobile-input mt-1 h-12 text-base" />
+                <input type="text" inputMode="decimal" value={proStr} onChange={(e)=>setProStr((e.target.value||'').replace(/[^0-9.,]/g,'').replace(',', '.'))} className="mobile-input mt-1 h-12 text-base w-full bg-white/10" placeholder="0" />
               </div>
               <div>
                 <Label className="text-white/80 text-sm">Carbs (g)</Label>
-                <Input type="number" inputMode="decimal" min={0} step="0.1" value={form.carbs_g} onChange={(e) => update('carbs_g', Number(e.target.value))} className="mobile-input mt-1 h-12 text-base" />
+                <input type="text" inputMode="decimal" value={carbStr} onChange={(e)=>setCarbStr((e.target.value||'').replace(/[^0-9.,]/g,'').replace(',', '.'))} className="mobile-input mt-1 h-12 text-base w-full bg-white/10" placeholder="0" />
               </div>
               <div>
                 <Label className="text-white/80 text-sm">Fat (g)</Label>
-                <Input type="number" inputMode="decimal" min={0} step="0.1" value={form.fat_g} onChange={(e) => update('fat_g', Number(e.target.value))} className="mobile-input mt-1 h-12 text-base" />
+                <input type="text" inputMode="decimal" value={fatStr} onChange={(e)=>setFatStr((e.target.value||'').replace(/[^0-9.,]/g,'').replace(',', '.'))} className="mobile-input mt-1 h-12 text-base w-full bg-white/10" placeholder="0" />
               </div>
 
               <div>
                 <Label className="text-white/80 text-sm">Fiber (g)</Label>
-                <Input type="number" inputMode="decimal" min={0} step="0.1" value={form.fiber_g ?? 0} onChange={(e) => update('fiber_g', Number(e.target.value))} className="mobile-input mt-1 h-12 text-base" />
+                <input type="text" inputMode="decimal" value={fiberStr} onChange={(e)=>setFiberStr((e.target.value||'').replace(/[^0-9.,]/g,'').replace(',', '.'))} className="mobile-input mt-1 h-12 text-base w-full bg-white/10" placeholder="0" />
               </div>
               <div>
                 <Label className="text-white/80 text-sm">Sugar (g)</Label>
-                <Input type="number" inputMode="decimal" min={0} step="0.1" value={form.sugar_g ?? 0} onChange={(e) => update('sugar_g', Number(e.target.value))} className="mobile-input mt-1 h-12 text-base" />
+                <input type="text" inputMode="decimal" value={sugarStr} onChange={(e)=>setSugarStr((e.target.value||'').replace(/[^0-9.,]/g,'').replace(',', '.'))} className="mobile-input mt-1 h-12 text-base w-full bg-white/10" placeholder="0" />
               </div>
               <div>
                 <Label className="text-white/80 text-sm">Sodium (mg)</Label>
-                <Input type="number" inputMode="numeric" min={0} step="1" value={form.sodium_mg ?? 0} onChange={(e) => update('sodium_mg', Number(e.target.value))} className="mobile-input mt-1 h-12 text-base" />
+                <input type="text" inputMode="numeric" value={sodiumStr} onChange={(e)=>setSodiumStr((e.target.value||'').replace(/[^0-9]/g,''))} className="mobile-input mt-1 h-12 text-base w-full bg-white/10" placeholder="0" />
               </div>
             </div>
           </div>
@@ -225,7 +274,18 @@ export function EditFoodLogDialog({
               </div>
               <div>
                 <Label className="text-white/80 text-sm">Unit</Label>
-                <Input value={form.serving_unit ?? 'serving'} onChange={(e) => update('serving_unit', e.target.value)} className="mobile-input mt-1 h-12 text-base" />
+                <select value={form.serving_unit ?? 'serving'} onChange={(e)=>update('serving_unit', e.target.value)} className="mt-1 h-12 text-base px-3 bg-black border border-white/30 rounded-md">
+                  <option value="g">g</option>
+                  <option value="kg">kg</option>
+                  <option value="ml">ml</option>
+                  <option value="l">l</option>
+                  <option value="cup">cup</option>
+                  <option value="tbsp">tbsp</option>
+                  <option value="tsp">tsp</option>
+                  <option value="serving">serving</option>
+                  <option value="slice">slice</option>
+                  <option value="piece">piece</option>
+                </select>
               </div>
               <div>
                 <Label className="text-white/80 text-sm">Calories</Label>

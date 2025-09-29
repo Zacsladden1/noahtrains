@@ -44,6 +44,7 @@ export default function NutritionPage() {
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [recentFoods, setRecentFoods] = useState<any[]>([]);
+  const [recentByMeal, setRecentByMeal] = useState<Record<string, any[]>>({});
   const [targets, setTargets] = useState<{ calories: number; protein: number; carbs: number; fat: number; water: number } | null>(null);
 
   useEffect(() => {
@@ -140,6 +141,30 @@ export default function NutritionPage() {
           }))
       );
       setWaterLogs(water || []);
+
+      // Build suggestions from previous days (last 100 logs before selectedDate), grouped by meal
+      const { data: prev } = await supabase
+        .from('nutrition_logs')
+        .select('meal, food_name, brand, serving_qty, serving_unit, calories, protein_g, carbs_g, fat_g, fiber_g, sugar_g, sodium_mg, created_at, date')
+        .eq('user_id', profile.id)
+        .lt('date', selectedDate)
+        .order('created_at', { ascending: false })
+        .limit(100);
+      const byMeal: Record<string, any[]> = { breakfast: [], lunch: [], dinner: [], snacks: [] } as any;
+      const seen = new Set<string>();
+      (prev || []).forEach((l: any) => {
+        const key = `${l.meal || 'snacks'}|${(l.food_name || '').toLowerCase()}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        const m = (l.meal || 'snacks') as string;
+        if (!byMeal[m]) byMeal[m] = [];
+        byMeal[m].push(l);
+      });
+      // Limit to top 8 per meal
+      Object.keys(byMeal).forEach((m) => {
+        byMeal[m] = (byMeal[m] || []).slice(0, 8);
+      });
+      setRecentByMeal(byMeal);
     } catch (error) {
       console.error('Error fetching nutrition data:', error);
     } finally {
@@ -453,6 +478,32 @@ export default function NutritionPage() {
                   </div>
                 </div>
               </CardHeader>
+              {/* Suggestions from previous days for this meal */}
+              {recentByMeal[meal.id]?.length > 0 && (
+                <CardContent>
+                  <div className="mb-2 text-xs sm:text-sm text-white/60">Recent for {meal.name.toLowerCase()}:</div>
+                  <div className="flex flex-wrap gap-1 sm:gap-2">
+                    {recentByMeal[meal.id].map((rf: any, idx: number) => (
+                      <Button
+                        key={idx}
+                        variant="outline"
+                        className="border-white/30 text-white hover:bg-white/10 text-xs sm:text-sm px-2 sm:px-3"
+                        size="sm"
+                        onClick={() => addFoodLog({
+                          meal: meal.id,
+                          food_name: rf.food_name as string,
+                          calories: Number(rf.calories || 0),
+                          protein_g: Number(rf.protein_g || 0),
+                          carbs_g: Number(rf.carbs_g || 0),
+                          fat_g: Number(rf.fat_g || 0),
+                        })}
+                      >
+                        {rf.food_name}
+                      </Button>
+                    ))}
+                  </div>
+                </CardContent>
+              )}
               
               {mealLogs.length > 0 && (
                 <CardContent>

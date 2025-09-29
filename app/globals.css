@@ -158,6 +158,17 @@
 .mobile-input {
   @apply h-11 sm:h-12 bg-black border-white/30 text-white placeholder:text-white/50 focus:border-primary focus:ring-primary text-base;
 }
+/* Inputs used on dark dialogs may overlay a light background helper */
+.mobile-input.bg\-white\/10 {
+  @apply border-white/40 placeholder:text-white/60;
+}
+/* Hide spinners on number inputs for cleaner mobile UI */
+input[type=number].mobile-input::-webkit-inner-spin-button,
+input[type=number].mobile-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type=number].mobile-input { -moz-appearance: textfield; }
 
 /* Ensure native time/date inputs are visible on iOS dark mode */
 input[type="time"].mobile-input,

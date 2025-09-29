@@ -26,7 +26,7 @@ export default function CoachClientDetailPage() {
   const [assignOpen, setAssignOpen] = useState(false);
   const [wkName, setWkName] = useState('');
   const [savingWorkout, setSavingWorkout] = useState(false);
-  const [exRows, setExRows] = useState<Array<{ exercise: string; sets: number; reps: number; weight: number }>>([{ exercise: '', sets: 3, reps: 10, weight: 0 }]);
+  const [exRows, setExRows] = useState<Array<{ exercise: string; sets: number | ''; reps: number | ''; weight: number | '' }>>([{ exercise: '', sets: 3, reps: 10, weight: 0 }]);
   const [createExOpen, setCreateExOpen] = useState<{ open: boolean; idx: number | null }>({ open: false, idx: null });
   const [newExName, setNewExName] = useState('');
   const [wkDows, setWkDows] = useState<number[]>(() => [new Date().getDay()]); // allow multiple days
@@ -78,24 +78,18 @@ export default function CoachClientDetailPage() {
       }
       dates.sort((a,b)=>a.getTime()-b.getTime());
 
-      // Create workouts in bulk
-      const payload = dates.map((dt)=>({ user_id: clientId, name: wkName.trim(), status: 'planned', created_at: new Date(dt.toISOString().slice(0,10)+'T08:00:00').toISOString() }));
-      const { data: created, error } = await supabase
-        .from('workouts')
-        .insert(payload)
-        .select('id, created_at');
-      if (error) throw error;
-
-      // Insert sets for each workout
-      const setRows: any[] = [];
-      for (const w of created || []) {
-        exRows.forEach((r) => {
-          for (let s = 1; s <= Math.max(1, Number(r.sets || 0)); s++) {
-            setRows.push({ workout_id: w.id, set_index: s, reps: Number(r.reps || 0), weight_kg: Number(r.weight || 0), notes: r.exercise || null });
-          }
-        });
-      }
-      if (setRows.length) await supabase.from('workout_sets').insert(setRows);
+      // Create workouts via server endpoint with service key (avoids RLS insert issues from coach context)
+      const morningIsoDates = dates.map((dt)=>{
+        const d = new Date(dt);
+        d.setHours(8,0,0,0);
+        return d.toISOString();
+      });
+      const res = await fetch('/api/coach/workouts/assign', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ coachId: (await supabase.auth.getUser()).data.user?.id, clientId, name: wkName.trim(), datesIso: morningIsoDates, sets: exRows })
+      });
+      const j = await res.json();
+      if (!res.ok || !j?.ok) throw new Error(j?.error || 'Failed to assign workouts');
 
       setAssignOpen(false);
       setWkName('');
@@ -281,10 +275,11 @@ export default function CoachClientDetailPage() {
           <DialogTrigger asChild>
             <Button className="bg-gold hover:bg-gold/90 text-black flex items-center gap-2"><Plus className="w-4 h-4" /> Assign workout for {new Date(selectedDate).toLocaleDateString()}</Button>
           </DialogTrigger>
-          <DialogContent className="bg-black border border-white/20 text-white max-w-2xl max-h-[85vh] sm:max-h-[80vh] overflow-y-auto">
+          <DialogContent className="bg-black border border-white/20 text-white max-w-2xl max-h-[85vh] sm:max-h-[80vh] overflow-y-auto" aria-describedby="assign-desc">
             <DialogHeader>
               <DialogTitle>Assign Workout</DialogTitle>
             </DialogHeader>
+            <p id="assign-desc" className="text-white/60 text-xs px-1">Create planned workouts for this client on the dates you choose.</p>
             <div className="space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
@@ -374,15 +369,45 @@ export default function CoachClientDetailPage() {
                     </div>
                     <div>
                       <label className="text-white/70 text-xs">Sets</label>
-                      <Input type="number" inputMode="numeric" value={row.sets} onChange={(e)=>updateRow(idx,{ sets: Number(e.target.value||0) })} className="mobile-input mt-1 h-10 w-full" />
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={row.sets === '' ? '' : String(row.sets)}
+                        onChange={(e)=>{
+                          const v = (e.target.value || '').replace(/[^0-9]/g, '');
+                          updateRow(idx, { sets: v === '' ? '' : Number(v) });
+                        }}
+                        className="mobile-input mt-1 h-10 w-full"
+                      />
                     </div>
                     <div>
                       <label className="text-white/70 text-xs">Reps</label>
-                      <Input type="number" inputMode="numeric" value={row.reps} onChange={(e)=>updateRow(idx,{ reps: Number(e.target.value||0) })} className="mobile-input mt-1 h-10 w-full" />
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={row.reps === '' ? '' : String(row.reps)}
+                        onChange={(e)=>{
+                          const v = (e.target.value || '').replace(/[^0-9]/g, '');
+                          updateRow(idx, { reps: v === '' ? '' : Number(v) });
+                        }}
+                        className="mobile-input mt-1 h-10 w-full"
+                      />
                     </div>
                     <div>
                       <label className="text-white/70 text-xs">Weight (kg)</label>
-                      <Input type="number" inputMode="decimal" value={row.weight} onChange={(e)=>updateRow(idx,{ weight: Number(e.target.value||0) })} className="mobile-input mt-1 h-10 w-full" />
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={row.weight === '' ? '' : String(row.weight)}
+                        onChange={(e)=>{
+                          let v = (e.target.value || '').replace(/[^0-9.,]/g, '');
+                          v = v.replace(',', '.');
+                          updateRow(idx, { weight: v === '' ? '' : Number(v) });
+                        }}
+                        className="mobile-input mt-1 h-10 w-full"
+                      />
                     </div>
                     <div className="flex justify-end">
                       <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={()=>removeRow(idx)}><Trash2 className="w-4 h-4" /></Button>
@@ -459,11 +484,9 @@ export default function CoachClientDetailPage() {
           {new Date(selectedDate).toLocaleDateString()}
         </div>
         <Button variant="outline" size="sm" className="border-white/30 text-white hover:bg-white/10" onClick={()=>{
-          const todayStr = new Date().toISOString().split('T')[0];
           const d = new Date(selectedDate);
           d.setDate(d.getDate()+1);
           const next = d.toISOString().split('T')[0];
-          if (next > todayStr) return; // don't go into future
           setSelectedDate(next);
         }}>
           Next <ChevronRight className="w-4 h-4 ml-1" />
