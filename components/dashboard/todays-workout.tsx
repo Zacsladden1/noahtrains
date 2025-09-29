@@ -1,6 +1,9 @@
 'use client';
 
 import Link from 'next/link';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/hooks/use-auth';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +20,41 @@ interface TodaysWorkoutProps {
 }
 
 export function TodaysWorkout({ workout }: TodaysWorkoutProps) {
+  const { profile } = useAuth();
+  const [resting, setResting] = useState(false);
+
+  const makeTodayRestDay = async () => {
+    if (!profile?.id || !workout) return;
+    try {
+      setResting(true);
+      const today = new Date(workout.created_at || new Date()).toISOString().split('T')[0];
+      const tomorrow = new Date();
+      const base = new Date();
+      if (workout.created_at) base.setTime(new Date(workout.created_at).getTime());
+      base.setDate(base.getDate() + 1);
+      const newCreatedAt = base.toISOString();
+      // Move planned workout to tomorrow morning 08:00 local
+      const morning = new Date(newCreatedAt);
+      morning.setHours(8,0,0,0);
+      await supabase
+        .from('workouts')
+        .update({ created_at: morning.toISOString() })
+        .eq('id', (workout as any).id)
+        .eq('user_id', profile.id);
+      // Record a notification event for coach follow-up (guarded per day)
+      const ymd = today;
+      await supabase.from('notification_events').insert({ user_id: profile.id, kind: 'client_rest_day', ymd, meta: { workout_id: (workout as any).id } as any });
+      // Immediate push to coach
+      try {
+        await fetch('/api/push/rest-day', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clientId: profile.id }) });
+      } catch {}
+      alert('Marked today as rest day. Your coach will be notified.');
+      // Best effort refresh
+      try { window.location.reload(); } catch {}
+    } catch {
+      alert('Failed to mark rest day');
+    } finally { setResting(false); }
+  };
   if (!workout) {
     return (
       <Card className="mobile-card">
@@ -117,6 +155,13 @@ export function TodaysWorkout({ workout }: TodaysWorkoutProps) {
             <div className="text-center py-2">
               <CheckCircle className="w-6 h-6 text-gold mx-auto mb-2" />
               <p className="text-sm text-white/60">Great job today!</p>
+            </div>
+          )}
+          {workout.status === 'planned' && (
+            <div className="mt-2">
+              <Button variant="outline" className="w-full border-white/30 text-white hover:bg-white/10" onClick={makeTodayRestDay} disabled={resting}>
+                {resting ? 'Rescheduling…' : 'Make today a rest day'}
+              </Button>
             </div>
           )}
         </div>

@@ -11,8 +11,10 @@ export default function AppLayout({
   return (
     <AppShell>
       <Suspense fallback={(
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="animate-spin rounded-full border-2 border-gold/40 border-t-gold h-12 w-12" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black">
+          {/* Splash logo */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/no%20backround%20high%20quality%20logo%202.png" alt="Logo" className="h-20 w-auto drop-shadow-[0_0_30px_rgba(205,167,56,0.2)]" />
         </div>
       )}> 
         <ClientAuthGate>{children}</ClientAuthGate>

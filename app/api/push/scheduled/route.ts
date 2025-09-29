@@ -36,6 +36,35 @@ export async function POST(req: NextRequest) {
       const d = String(local.getDate()).padStart(2, '0');
       const ymd = `${y}-${m}-${d}`;
       const hour = local.getHours();
+      // If client marked a rest day today, notify their coach once
+      {
+        const { data: restEvent } = await admin
+          .from('notification_events')
+          .select('id')
+          .eq('user_id', u.id)
+          .eq('kind', 'client_rest_day')
+          .eq('ymd', ymd)
+          .maybeSingle();
+        if (restEvent?.id) {
+          const { data: rel } = await admin.from('clients').select('coach_id').eq('client_id', u.id).maybeSingle();
+          const coachId = rel?.coach_id;
+          if (coachId) {
+            const { data: subs } = await admin
+              .from('push_subscriptions')
+              .select('endpoint, p256dh, auth')
+              .eq('user_id', coachId);
+            const payload = JSON.stringify({
+              title: 'Rest day set by client',
+              body: `${u.full_name || u.email || 'Client'} made today a rest day`,
+              url: '/coach/clients'
+            });
+            const r = await Promise.allSettled((subs || []).map((s: any)=> webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } } as any, payload)));
+            results.push({ coach: coachId, kind: 'client_rest_day', client: u.id, sent: r.filter(x=>x.status==='fulfilled').length });
+            // Also insert a guard so we don't notify multiple times via this job
+            await admin.from('notification_events').insert({ user_id: u.id, kind: 'client_rest_day_notified', ymd });
+          }
+        }
+      }
 
       // Helper to send a push notification
       const sendToUser = async (userId: string, title: string, body: string) => {
