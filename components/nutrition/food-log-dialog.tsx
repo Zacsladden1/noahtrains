@@ -62,6 +62,22 @@ export function FoodLogDialog({
   const [per100, setPer100] = useState<{ cal: number; pro: number; carb: number; fat: number; fiber: number; sugar: number; sodium: number }>({ cal: 0, pro: 0, carb: 0, fat: 0, fiber: 0, sugar: 0, sodium: 0 });
   const [servingRefGrams, setServingRefGrams] = useState<number | null>(null);
 
+  // Recalculate macros when serving qty changes and we are in auto-scale mode using per-100 values
+  useEffect(() => {
+    if (!autoScale) return;
+    const unit = (form.serving_unit || '').toLowerCase();
+    if (unit !== 'g' && unit !== 'ml') return;
+    const qty = parseFloat((servingQtyStr || '0').replace(',', '.')) || 0;
+    const scale = qty / 100;
+    setCalStr(String(Math.round(per100.cal * scale)));
+    setProStr(String(+(per100.pro * scale).toFixed(1)));
+    setCarbStr(String(+(per100.carb * scale).toFixed(1)));
+    setFatStr(String(+(per100.fat * scale).toFixed(1)));
+    setFiberStr(String(+(per100.fiber * scale).toFixed(1)));
+    setSugarStr(String(+(per100.sugar * scale).toFixed(1)));
+    setSodiumStr(String(Math.round(per100.sodium * scale)));
+  }, [servingQtyStr, form.serving_unit, autoScale, per100]);
+
   const update = (key: keyof FoodPayload, value: any) => {
     setForm((f) => ({ ...f, [key]: value }));
   };
@@ -132,7 +148,12 @@ export function FoodLogDialog({
         }
       }
       // Prefer g/ml for clarity
-      const nextUnit = unit === 'kg' ? 'g' : unit === 'l' ? 'ml' : unit;
+      let nextUnit = unit === 'kg' ? 'g' : unit === 'l' ? 'ml' : unit;
+      // Default to grams if we couldn't parse a concrete unit
+      if (!nextUnit || nextUnit === 'serving') {
+        nextUnit = 'g';
+        qty = 100;
+      }
       setForm((f) => ({
         ...f,
         food_name: p.product_name || f.food_name,
@@ -221,7 +242,7 @@ export function FoodLogDialog({
                     className="mobile-input h-12 text-base w-full bg-white/10"
                     placeholder="1"
                   />
-                  <select value={form.serving_unit ?? 'serving'} onChange={(e)=>update('serving_unit', e.target.value)} className="h-12 text-base px-3 bg-black border border-white/30 rounded-md">
+                  <select value={form.serving_unit ?? 'serving'} onChange={(e)=>{ update('serving_unit', e.target.value); /* keep autoscale if g/ml */ if (e.target.value === 'g' || e.target.value === 'ml') setAutoScale(true); }} className="h-12 text-base px-3 bg-black border border-white/30 rounded-md">
                     <option value="g">g</option>
                     <option value="kg">kg</option>
                     <option value="ml">ml</option>
@@ -238,32 +259,32 @@ export function FoodLogDialog({
 
               <div>
                 <Label className="text-white/80 text-sm">Calories</Label>
-                <input type="text" inputMode="numeric" value={calStr} onChange={(e)=>setCalStr((e.target.value||'').replace(/[^0-9]/g,''))} className="mobile-input mt-1 h-12 text-base w-full bg-white/10" placeholder="0" />
+                <input type="text" inputMode="numeric" value={calStr} onChange={(e)=>{ setCalStr((e.target.value||'').replace(/[^0-9]/g,'')); setAutoScale(false); }} className="mobile-input mt-1 h-12 text-base w-full bg-white/10" placeholder="0" />
               </div>
               <div>
                 <Label className="text-white/80 text-sm">Protein (g)</Label>
-                <input type="text" inputMode="decimal" value={proStr} onChange={(e)=>setProStr((e.target.value||'').replace(/[^0-9.,]/g,'').replace(',', '.'))} className="mobile-input mt-1 h-12 text-base w-full bg-white/10" placeholder="0" />
+                <input type="text" inputMode="decimal" value={proStr} onChange={(e)=>{ setProStr((e.target.value||'').replace(/[^0-9.,]/g,'').replace(',', '.')); setAutoScale(false); }} className="mobile-input mt-1 h-12 text-base w-full bg-white/10" placeholder="0" />
               </div>
               <div>
                 <Label className="text-white/80 text-sm">Carbs (g)</Label>
-                <input type="text" inputMode="decimal" value={carbStr} onChange={(e)=>setCarbStr((e.target.value||'').replace(/[^0-9.,]/g,'').replace(',', '.'))} className="mobile-input mt-1 h-12 text-base w-full bg-white/10" placeholder="0" />
+                <input type="text" inputMode="decimal" value={carbStr} onChange={(e)=>{ setCarbStr((e.target.value||'').replace(/[^0-9.,]/g,'').replace(',', '.')); setAutoScale(false); }} className="mobile-input mt-1 h-12 text-base w-full bg-white/10" placeholder="0" />
               </div>
               <div>
                 <Label className="text-white/80 text-sm">Fat (g)</Label>
-                <input type="text" inputMode="decimal" value={fatStr} onChange={(e)=>setFatStr((e.target.value||'').replace(/[^0-9.,]/g,'').replace(',', '.'))} className="mobile-input mt-1 h-12 text-base w-full bg-white/10" placeholder="0" />
+                <input type="text" inputMode="decimal" value={fatStr} onChange={(e)=>{ setFatStr((e.target.value||'').replace(/[^0-9.,]/g,'').replace(',', '.')); setAutoScale(false); }} className="mobile-input mt-1 h-12 text-base w-full bg-white/10" placeholder="0" />
               </div>
 
               <div>
                 <Label className="text-white/80 text-sm">Fiber (g)</Label>
-                <input type="text" inputMode="decimal" value={fiberStr} onChange={(e)=>setFiberStr((e.target.value||'').replace(/[^0-9.,]/g,'').replace(',', '.'))} className="mobile-input mt-1 h-12 text-base w-full bg-white/10" placeholder="0" />
+                <input type="text" inputMode="decimal" value={fiberStr} onChange={(e)=>{ setFiberStr((e.target.value||'').replace(/[^0-9.,]/g,'').replace(',', '.')); setAutoScale(false); }} className="mobile-input mt-1 h-12 text-base w-full bg-white/10" placeholder="0" />
               </div>
               <div>
                 <Label className="text-white/80 text-sm">Sugar (g)</Label>
-                <input type="text" inputMode="decimal" value={sugarStr} onChange={(e)=>setSugarStr((e.target.value||'').replace(/[^0-9.,]/g,'').replace(',', '.'))} className="mobile-input mt-1 h-12 text-base w-full bg-white/10" placeholder="0" />
+                <input type="text" inputMode="decimal" value={sugarStr} onChange={(e)=>{ setSugarStr((e.target.value||'').replace(/[^0-9.,]/g,'').replace(',', '.')); setAutoScale(false); }} className="mobile-input mt-1 h-12 text-base w-full bg-white/10" placeholder="0" />
               </div>
               <div>
                 <Label className="text-white/80 text-sm">Sodium (mg)</Label>
-                <input type="text" inputMode="numeric" value={sodiumStr} onChange={(e)=>setSodiumStr((e.target.value||'').replace(/[^0-9]/g,''))} className="mobile-input mt-1 h-12 text-base w-full bg-white/10" placeholder="0" />
+                <input type="text" inputMode="numeric" value={sodiumStr} onChange={(e)=>{ setSodiumStr((e.target.value||'').replace(/[^0-9]/g,'')); setAutoScale(false); }} className="mobile-input mt-1 h-12 text-base w-full bg-white/10" placeholder="0" />
               </div>
             </div>
           </div>
