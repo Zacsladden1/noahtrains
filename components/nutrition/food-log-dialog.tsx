@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -57,6 +57,10 @@ export function FoodLogDialog({
   const [fiberStr, setFiberStr] = useState<string>('0');
   const [sugarStr, setSugarStr] = useState<string>('0');
   const [sodiumStr, setSodiumStr] = useState<string>('0');
+  // Auto-scale macros when serving changes (after a barcode scan)
+  const [autoScale, setAutoScale] = useState<boolean>(false);
+  const [per100, setPer100] = useState<{ cal: number; pro: number; carb: number; fat: number; fiber: number; sugar: number; sodium: number }>({ cal: 0, pro: 0, carb: 0, fat: 0, fiber: 0, sugar: 0, sodium: 0 });
+  const [servingRefGrams, setServingRefGrams] = useState<number | null>(null);
 
   const update = (key: keyof FoodPayload, value: any) => {
     setForm((f) => ({ ...f, [key]: value }));
@@ -100,19 +104,63 @@ export function FoodLogDialog({
         return;
       }
       const nutr = p.nutriments || {};
+      // Set base per-100 values for scaling
+      const basePer100 = {
+        cal: Number(nutr['energy-kcal_100g']) || 0,
+        pro: Number(nutr.proteins_100g) || 0,
+        carb: Number(nutr.carbohydrates_100g) || 0,
+        fat: Number(nutr.fat_100g) || 0,
+        fiber: Number(nutr.fiber_100g) || 0,
+        sugar: Number(nutr.sugars_100g) || 0,
+        sodium: Math.round((Number(nutr.sodium_100g) || 0) * 1000),
+      };
+      setPer100(basePer100);
+
+      // Try to parse serving size like "30 g" or "1 cup (240 ml)" → prefer grams/ml
+      let qty = 1;
+      let unit: string = 'serving';
+      const ss = (p.serving_size || '').toString();
+      const match = ss.match(/([0-9]+(?:[\.,][0-9]+)?)\s*(g|ml|kg|l)/i) || ss.match(/\(([^\)]*)\)/);
+      if (match) {
+        const txt = match[1] && match[2] ? `${match[1]} ${match[2]}` : (match[1] || '');
+        const m2 = txt.match(/([0-9]+(?:[\.,][0-9]+)?)\s*(g|ml|kg|l)/i);
+        if (m2) {
+          qty = parseFloat(m2[1].replace(',', '.')) || 1;
+          unit = m2[2].toLowerCase();
+          if (unit === 'kg') { qty = qty * 1000; unit = 'g'; }
+          if (unit === 'l') { qty = qty * 1000; unit = 'ml'; }
+        }
+      }
+      // Prefer g/ml for clarity
+      const nextUnit = unit === 'kg' ? 'g' : unit === 'l' ? 'ml' : unit;
       setForm((f) => ({
         ...f,
         food_name: p.product_name || f.food_name,
         brand: p.brands || f.brand,
-        serving_unit: p.serving_size || f.serving_unit,
+        serving_unit: nextUnit || f.serving_unit,
       }));
-      setCalStr(String(Number(nutr['energy-kcal_100g']) || 0));
-      setProStr(String(Number(nutr.proteins_100g) || 0));
-      setCarbStr(String(Number(nutr.carbohydrates_100g) || 0));
-      setFatStr(String(Number(nutr.fat_100g) || 0));
-      setFiberStr(String(Number(nutr.fiber_100g) || 0));
-      setSugarStr(String(Number(nutr.sugars_100g) || 0));
-      setSodiumStr(String(Math.round((Number(nutr.sodium_100g) || 0) * 1000)));
+      setServingQtyStr(String(qty));
+      setServingRefGrams(nextUnit === 'g' ? qty : nextUnit === 'ml' ? qty : null);
+
+      // If per-serving macros exist, use those, else scale per-100 by qty
+      const calServ = Number(nutr['energy-kcal_serving']);
+      const proServ = Number(nutr.proteins_serving);
+      const carbServ = Number(nutr.carbohydrates_serving);
+      const fatServ = Number(nutr.fat_serving);
+      const fiberServ = Number(nutr.fiber_serving);
+      const sugarServ = Number(nutr.sugars_serving);
+      const sodiumServ = Number(nutr.sodium_serving) ? Math.round(Number(nutr.sodium_serving) * 1000) : undefined;
+
+      const grams = nextUnit === 'g' ? qty : nextUnit === 'ml' ? qty : 0;
+      const scale = grams > 0 ? grams / 100 : 1;
+      setCalStr(String(Number.isFinite(calServ) && calServ > 0 ? Math.round(calServ) : Math.round(basePer100.cal * scale)));
+      setProStr(String(Number.isFinite(proServ) && proServ > 0 ? proServ : +(basePer100.pro * scale).toFixed(1)));
+      setCarbStr(String(Number.isFinite(carbServ) && carbServ > 0 ? carbServ : +(basePer100.carb * scale).toFixed(1)));
+      setFatStr(String(Number.isFinite(fatServ) && fatServ > 0 ? fatServ : +(basePer100.fat * scale).toFixed(1)));
+      setFiberStr(String(Number.isFinite(fiberServ) && fiberServ > 0 ? fiberServ : +(basePer100.fiber * scale).toFixed(1)));
+      setSugarStr(String(Number.isFinite(sugarServ) && sugarServ > 0 ? sugarServ : +(basePer100.sugar * scale).toFixed(1)));
+      setSodiumStr(String(Number.isFinite(sodiumServ as any) && (sodiumServ as any) > 0 ? sodiumServ : Math.round(basePer100.sodium * scale)));
+      setAutoScale(true);
       setShowScanner(false);
     } catch (e) {
       console.error('Barcode lookup failed', e);
@@ -153,7 +201,7 @@ export function FoodLogDialog({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 sm:pt-0">
               <div>
                 <Label htmlFor="food" className="text-white/80 text-sm">Food name</Label>
-                <Input id="food" value={form.food_name} onChange={(e) => update('food_name', e.target.value)} className="mobile-input mt-1 h-12 text-base" placeholder="e.g., Chicken breast" />
+                  <Input id="food" value={form.food_name} onChange={(e) => update('food_name', e.target.value)} className="mobile-input mt-1 h-12 text-base" placeholder="e.g., Chicken breast (per 100g unless specified)" />
               </div>
               <div>
                 <Label htmlFor="brand" className="text-white/80 text-sm">Brand (optional)</Label>
