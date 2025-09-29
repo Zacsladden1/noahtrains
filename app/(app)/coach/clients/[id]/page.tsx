@@ -36,6 +36,8 @@ export default function CoachClientDetailPage() {
   const [flexibleSchedule, setFlexibleSchedule] = useState<boolean>(false);
   const [flexSessions, setFlexSessions] = useState<number>(24);
   const [flexGapDays, setFlexGapDays] = useState<number>(1);
+  const [flexSessionsStr, setFlexSessionsStr] = useState<string>('24');
+  const [flexGapDaysStr, setFlexGapDaysStr] = useState<string>('1');
   const [sessions, setSessions] = useState<any[]>([]);
   const [sessLoading, setSessLoading] = useState(false);
 
@@ -49,10 +51,13 @@ export default function CoachClientDetailPage() {
     setSavingWorkout(true);
     try {
       const base = new Date(selectedDate + 'T00:00:00');
+      // Coerce flexible inputs if blank or zero
+      const normalizedFlexSessions = Math.max(1, Number(flexSessions || Number(flexSessionsStr || 0) || 0));
+      const normalizedFlexGap = Math.max(1, Number(flexGapDays || Number(flexGapDaysStr || 0) || 0));
       let dates: Date[] = [];
       if (flexibleSchedule) {
-        const count = Math.max(1, Number(flexSessions || 1));
-        const gap = Math.max(1, Number(flexGapDays || 1));
+        const count = normalizedFlexSessions;
+        const gap = normalizedFlexGap;
         for (let i = 0; i < count; i++) {
           const dt = new Date(base);
           dt.setDate(base.getDate() + i * gap);
@@ -321,11 +326,35 @@ export default function CoachClientDetailPage() {
                     <div className="mt-2 grid grid-cols-2 gap-2">
                       <div>
                         <label className="text-white/70 text-xs">Number of sessions</label>
-                        <input type="number" min={1} max={200} value={flexSessions} onChange={(e)=>setFlexSessions(Math.max(1, Number(e.target.value||24)))} className="mobile-input h-8 w-full text-center" />
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={flexSessionsStr}
+                          onChange={(e)=>{
+                            const v = (e.target.value || '').replace(/[^0-9]/g, '');
+                            setFlexSessionsStr(v);
+                            setFlexSessions(v === '' ? 0 : Number(v));
+                          }}
+                          className="mobile-input h-8 w-full text-center"
+                          placeholder="e.g. 24"
+                        />
                       </div>
                       <div>
                         <label className="text-white/70 text-xs">Gap (days) between sessions</label>
-                        <input type="number" min={1} max={14} value={flexGapDays} onChange={(e)=>setFlexGapDays(Math.max(1, Number(e.target.value||1)))} className="mobile-input h-8 w-full text-center" />
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={flexGapDaysStr}
+                          onChange={(e)=>{
+                            const v = (e.target.value || '').replace(/[^0-9]/g, '');
+                            setFlexGapDaysStr(v);
+                            setFlexGapDays(v === '' ? 0 : Number(v));
+                          }}
+                          className="mobile-input h-8 w-full text-center"
+                          placeholder="e.g. 1"
+                        />
                       </div>
                     </div>
                   )}
