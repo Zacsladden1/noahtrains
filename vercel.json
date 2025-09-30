@@ -1,8 +1,13 @@
 {
   "crons": [
     {
-      "path": "/api/push/scheduled",
-      "schedule": "0 * * * *",
+      "path": "/api/push/morning",
+      "schedule": "0 9 * * *",
+      "method": "POST"
+    },
+    {
+      "path": "/api/push/dinner",
+      "schedule": "0 19 * * *",
       "method": "POST"
     }
   ]
