@@ -330,14 +330,6 @@ export default function NutritionPage() {
             onChange={(e) => setSelectedDate(e.target.value)}
             className="w-auto mobile-input text-xs sm:text-sm"
           />
-          <Button
-            onClick={() => setShowBarcodeScanner(true)}
-            variant="outline"
-            className="border-white/30 text-white hover:bg-white/10 text-xs sm:text-sm px-2 sm:px-3"
-          >
-            <Scan className="w-4 h-4 sm:mr-2 text-gold" />
-            <span className="hidden sm:inline">Scan</span>
-          </Button>
         </div>
       </div>
 

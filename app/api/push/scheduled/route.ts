@@ -7,6 +7,14 @@ import webpush from 'web-push';
 
 export async function POST(req: NextRequest) {
   try {
+    // Optional: protect with CRON_SECRET if provided
+    const cronSecret = process.env.CRON_SECRET;
+    if (cronSecret) {
+      const auth = req.headers.get('authorization') || '';
+      if (auth !== `Bearer ${cronSecret}`) {
+        return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+      }
+    }
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY as string;
     const vapidPublic = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY as string;

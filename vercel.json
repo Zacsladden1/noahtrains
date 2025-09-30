@@ -1,0 +1,11 @@
+{
+  "crons": [
+    {
+      "path": "/api/push/scheduled",
+      "schedule": "0 * * * *",
+      "method": "POST"
+    }
+  ]
+}
+
+
