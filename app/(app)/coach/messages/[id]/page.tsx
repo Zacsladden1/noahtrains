@@ -123,8 +123,8 @@ export default function CoachThreadPage() {
     await supabase.from('message_threads').update({ last_message_at: new Date().toISOString() }).eq('id', threadId);
     // mark viewed after sending
     try { await supabase.from('message_threads').update({ last_viewed_by_coach_at: new Date().toISOString() }).eq('id', threadId); } catch {}
-    // trigger push to client
-    await fetch('/api/push/message', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ threadId }) });
+    // trigger push to the other party only (server filters recipients using senderId)
+    await fetch('/api/push/message', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ threadId, senderId: profile.id, preview: text.trim().slice(0, 100) }) });
   };
 
   const uploadAttachment = async (file: File) => {

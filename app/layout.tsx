@@ -6,6 +6,7 @@ import DevSWCleaner from '@/components/system/dev-sw-cleaner';
 import IOSPWABanner from '@/components/system/ios-pwa-banner';
 import SWUpdater from '@/components/system/sw-updater';
 import ClientErrorReporter from '@/components/system/client-error-reporter';
+import { Toaster } from '@/components/ui/toaster';
 
 // Avoid serving stale HTML that references old chunks
 export const dynamic = 'force-dynamic';
@@ -98,6 +99,7 @@ export default function RootLayout({
         {isProd && <ChunkErrorReload />}
         {isProd && <SWUpdater />}
         {isProd && <ClientErrorReporter />}
+        <Toaster />
       </body>
     </html>
   );

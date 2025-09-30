@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Plus, MessageCircle, Calendar, Clock } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Workout, NutritionLog } from '@/types/supabase';
+import { toast } from '@/hooks/use-toast';
 
 export default function DashboardPage() {
   const { profile, isAdmin } = useAuth();
@@ -354,6 +355,7 @@ export default function DashboardPage() {
       if (error) throw error;
       setSessOpen(false);
       setSessNotes('');
+      try { toast({ title: 'Session requested', description: 'Your coach will approve it soon.' }); } catch {}
     } catch (e:any) {
       alert(e?.message || 'Failed to create session');
     } finally {
