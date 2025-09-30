@@ -26,7 +26,7 @@ export default function CoachClientDetailPage() {
   const [assignOpen, setAssignOpen] = useState(false);
   const [wkName, setWkName] = useState('');
   const [savingWorkout, setSavingWorkout] = useState(false);
-  const [exRows, setExRows] = useState<Array<{ exercise: string; sets: number | ''; reps: number | ''; weight: number | '' }>>([{ exercise: '', sets: 3, reps: 10, weight: 0 }]);
+  const [exRows, setExRows] = useState<Array<{ exercise: string; sets: number | ''; reps: string | ''; weight: number | '' }>>([{ exercise: '', sets: 3, reps: '10', weight: 0 }]);
   const [createExOpen, setCreateExOpen] = useState<{ open: boolean; idx: number | null }>({ open: false, idx: null });
   const [newExName, setNewExName] = useState('');
   const [wkDows, setWkDows] = useState<number[]>(() => [new Date().getDay()]); // allow multiple days
@@ -40,8 +40,11 @@ export default function CoachClientDetailPage() {
   const [flexGapDaysStr, setFlexGapDaysStr] = useState<string>('1');
   const [sessions, setSessions] = useState<any[]>([]);
   const [sessLoading, setSessLoading] = useState(false);
+  const [videoPickerOpen, setVideoPickerOpen] = useState(false);
+  const [videoOptions, setVideoOptions] = useState<Array<{ id: string; title: string }>>([]);
+  const [selectedVideoId, setSelectedVideoId] = useState<string>('');
 
-  const updateRow = (idx: number, patch: Partial<{ exercise: string; sets: number; reps: number; weight: number }>) => {
+  const updateRow = (idx: number, patch: Partial<{ exercise: string; sets: number; reps: string; weight: number }>) => {
     setExRows(prev => prev.map((r, i) => i === idx ? { ...r, ...patch } : r));
   };
   const removeRow = (idx: number) => setExRows(prev => prev.filter((_, i) => i !== idx));
@@ -86,7 +89,7 @@ export default function CoachClientDetailPage() {
       });
       const res = await fetch('/api/coach/workouts/assign', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ coachId: (await supabase.auth.getUser()).data.user?.id, clientId, name: wkName.trim(), datesIso: morningIsoDates, sets: exRows })
+        body: JSON.stringify({ coachId: (await supabase.auth.getUser()).data.user?.id, clientId, name: wkName.trim(), datesIso: morningIsoDates, sets: exRows, videoId: selectedVideoId || undefined })
       });
       const j = await res.json();
       if (!res.ok || !j?.ok) throw new Error(j?.error || 'Failed to assign workouts');
@@ -96,6 +99,7 @@ export default function CoachClientDetailPage() {
       setExRows([{ exercise: '', sets: 3, reps: 10, weight: 0 }]);
       setWkDows([new Date().getDay()]);
       setFlexibleSchedule(false);
+      setSelectedVideoId('');
       // refresh day list for current selected day
       const from = `${selectedDate}T00:00:00`;
       const to = `${selectedDate}T23:59:59`;
@@ -385,14 +389,13 @@ export default function CoachClientDetailPage() {
                       <label className="text-white/70 text-xs">Reps</label>
                       <input
                         type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
+                        inputMode="text"
                         value={row.reps === '' ? '' : String(row.reps)}
                         onChange={(e)=>{
-                          const v = (e.target.value || '').replace(/[^0-9]/g, '');
-                          updateRow(idx, { reps: v === '' ? '' : Number(v) });
+                          updateRow(idx, { reps: e.target.value });
                         }}
                         className="mobile-input mt-1 h-10 w-full"
+                        placeholder="e.g. 8-12 or 10"
                       />
                     </div>
                     <div>
@@ -409,12 +412,41 @@ export default function CoachClientDetailPage() {
                         className="mobile-input mt-1 h-10 w-full"
                       />
                     </div>
-                    <div className="flex justify-end">
+                    <div className="flex items-center justify-end gap-2">
+                      <Button
+                        variant="outline"
+                        className="border-white/30 text-white hover:bg-white/10 h-10"
+                        type="button"
+                        onClick={async ()=>{
+                          setVideoPickerOpen(true);
+                          try {
+                            const { data } = await supabase
+                              .from('videos')
+                              .select('id, title, section')
+                              .eq('section', 'form')
+                              .order('title', { ascending: true });
+                            setVideoOptions((data || []).map((v:any)=>({ id: v.id, title: v.title || 'Untitled' })));
+                          } catch { setVideoOptions([]); }
+                          // store chosen video into this row when picker closes using selectedVideoId
+                          const onClose = () => {
+                            if (selectedVideoId) {
+                              setExRows(prev => prev.map((r,i)=> i===idx ? { ...r, videoId: selectedVideoId } : r));
+                            }
+                          };
+                          const handler = (open: boolean) => { if (!open) onClose(); };
+                          // quick attach to dialog open state without extra prop drilling
+                          setVideoPickerOpen(true);
+                          // attach temporary listener via microtask; dialog onOpenChange will call setVideoPickerOpen
+                          Promise.resolve().then(()=>handler(false));
+                        }}
+                      >
+                        {row.videoId ? 'Change video' : 'Add video'}
+                      </Button>
                       <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={()=>removeRow(idx)}><Trash2 className="w-4 h-4" /></Button>
                     </div>
                   </div>
                 ))}
-                <Button variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={()=>setExRows(prev=>[...prev,{ exercise:'', sets:3, reps:10, weight:0 }])}><Plus className="w-4 h-4 mr-1" /> Add exercise</Button>
+              <Button variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={()=>setExRows(prev=>[...prev,{ exercise:'', sets:3, reps:'10', weight:0 }])}><Plus className="w-4 h-4 mr-1" /> Add exercise</Button>
               </div>
               <div className="flex justify-end gap-2">
                 <Button variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={()=>setAssignOpen(false)}>Cancel</Button>
@@ -443,6 +475,39 @@ export default function CoachClientDetailPage() {
                   setCreateExOpen({ open:false, idx:null });
                 }}>Save</Button>
               </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+        {/* Video Picker */}
+        <Dialog open={videoPickerOpen} onOpenChange={(o)=>{
+          setVideoPickerOpen(o);
+          if (!o && selectedVideoId) {
+            // no-op here; per-row handler already applies when closing via button flow
+          }
+        }}>
+          <DialogContent className="bg-black border border-white/20 text-white max-w-md">
+            <DialogHeader>
+              <DialogTitle>Select form video</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+              {videoOptions.length === 0 ? (
+                <p className="text-white/60 text-sm">No form videos found.</p>
+              ) : (
+                videoOptions.map(v => (
+                  <button
+                    key={v.id}
+                    className={`w-full text-left p-2 rounded border ${selectedVideoId===v.id?'border-gold bg-white/10':'border-white/20 hover:bg-white/5'}`}
+                    onClick={()=>setSelectedVideoId(v.id)}
+                  >
+                    <div className="text-white text-sm">{v.title}</div>
+                    {selectedVideoId===v.id && <div className="text-gold text-xs mt-0.5">Selected</div>}
+                  </button>
+                ))
+              )}
+            </div>
+            <div className="flex justify-end gap-2 mt-3">
+              <Button variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={()=>{ setSelectedVideoId(''); setVideoPickerOpen(false); }}>Clear</Button>
+              <Button className="bg-gold hover:bg-gold/90 text-black" onClick={()=> setVideoPickerOpen(false)}>Done</Button>
             </div>
           </DialogContent>
         </Dialog>

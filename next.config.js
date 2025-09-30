@@ -7,27 +7,16 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   images: {
-    unoptimized: true,
+    // Enable Next image optimizer for better caching/CDN delivery in prod
+    unoptimized: false,
   },
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
+    reactRemoveProperties: process.env.NODE_ENV === 'production',
   },
-  // Ensure stable chunk generation
-  generateBuildId: async () => {
-    return 'noahhtrains-build-' + Date.now();
-  },
+  // Use default build id to maximize static asset caching
   async headers() {
     return [
-      {
-        // Disable caching for HTML/doc responses to avoid stale HTML referencing old chunks
-        source: '/:path*',
-        headers: [
-          { key: 'Cache-Control', value: 'no-store, must-revalidate' },
-          // Disallow the app from being embedded and block any iframes by default
-          { key: 'X-Frame-Options', value: 'DENY' },
-          { key: 'Content-Security-Policy', value: "frame-ancestors 'none'; frame-src 'none'" },
-        ],
-      },
       {
         // Keep long-term caching for static chunks/images
         source: '/_next/static/:path*',
@@ -39,6 +28,13 @@ const nextConfig = {
         source: '/_next/image',
         headers: [
           { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+        ],
+      },
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'Content-Security-Policy', value: "frame-ancestors 'none'; frame-src 'none'" },
         ],
       },
     ];
@@ -53,6 +49,15 @@ const nextConfig = {
       stream: false,
       util: false,
     };
+
+    // Prefer module/modern condition for better tree-shaking where available
+    config.resolve.conditionNames = [
+      'webpack',
+      'import',
+      'module',
+      'browser',
+      'default',
+    ];
 
     // Let Next.js manage optimizations/minification with SWC on latest versions
 

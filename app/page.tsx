@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
-import { AuthForm } from '@/components/auth/auth-form';
+import dynamic from 'next/dynamic';
+const AuthForm = dynamic(() => import('@/components/auth/auth-form').then(m => m.AuthForm), { ssr: false, loading: () => <div className="min-h-screen flex items-center justify-center">Loading…</div> });
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';

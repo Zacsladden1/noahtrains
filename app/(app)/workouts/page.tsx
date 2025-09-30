@@ -17,11 +17,15 @@ import {
 } from 'lucide-react';
 import { Workout } from '@/types/supabase';
 import Link from 'next/link';
+import { VideoDialog } from '@/components/system/video-dialog';
 
 export default function WorkoutsPage() {
   const { profile } = useAuth();
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [loading, setLoading] = useState(true);
+  const [videoByWorkout, setVideoByWorkout] = useState<Record<string, { url: string; title: string }>>({});
+  const [videoOpen, setVideoOpen] = useState(false);
+  const [currentVideo, setCurrentVideo] = useState<{ url: string; title?: string } | null>(null);
 
   useEffect(() => {
     if (profile) {
@@ -41,7 +45,47 @@ export default function WorkoutsPage() {
         .limit(20);
 
       if (error) throw error;
-      setWorkouts(data || []);
+      const list = data || [];
+      setWorkouts(list);
+      // Load one form video per workout for quick access in the list
+      try {
+        const ids = list.map((w: any) => w.id);
+        if (ids.length) {
+          const { data: links } = await supabase
+            .from('workout_exercise_videos')
+            .select('workout_id, public_url, video_title, video:videos(storage_path, title)')
+            .in('workout_id', ids);
+          const map: Record<string, { url: string; title: string }> = {};
+          for (const row of (links || []) as any[]) {
+            const wid = row?.workout_id as string;
+            let url: string | undefined = row?.public_url as string | undefined;
+            let title: string = row?.video_title || row?.video?.title || 'Form video';
+            if (!url && row?.video?.storage_path) {
+              const pub = supabase.storage.from('videos').getPublicUrl(row.video.storage_path);
+              url = (pub && pub.data && pub.data.publicUrl) || undefined;
+            }
+            if (wid && url && !map[wid]) map[wid] = { url, title };
+          }
+
+          // Fallback to workout-level video if no exercise-level link found
+          const missing = ids.filter((id: string) => !map[id]);
+          if (missing.length) {
+            const { data: wv } = await supabase
+              .from('workout_videos')
+              .select('workout_id, video:videos(storage_path, title)')
+              .in('workout_id', missing);
+            for (const row of (wv || []) as any[]) {
+              const wid = row?.workout_id as string;
+              const path = row?.video?.storage_path as string | undefined;
+              if (!wid || !path || map[wid]) continue;
+              const pub = supabase.storage.from('videos').getPublicUrl(path);
+              const url = (pub && pub.data && pub.data.publicUrl) || undefined;
+              if (url) map[wid] = { url, title: row?.video?.title || 'Form video' };
+            }
+          }
+          setVideoByWorkout(map);
+        }
+      } catch {}
     } catch (error) {
       console.error('Error fetching workouts:', error);
     }
@@ -152,18 +196,31 @@ export default function WorkoutsPage() {
                         <Badge className={`hidden sm:inline-flex ${getStatusColor(workout.status)}`}>
                           {workout.status.replace('_', ' ').toUpperCase()}
                         </Badge>
-                        <Link href={`/workouts/${workout.id}`}>
-                          <Button 
-                            className={workout.status === 'completed' 
-                              ? 'border-white/30 text-white hover:bg-white/10 text-xs sm:text-sm px-2 w-full sm:w-auto' 
-                              : 'bg-gold hover:bg-gold/90 text-black text-xs sm:text-sm px-2 w-full sm:w-auto'
-                            }
-                            variant={workout.status === 'completed' ? 'outline' : 'default'}
-                            size="sm"
-                          >
-                            {workout.status === 'completed' ? 'View' : 'Continue'}
-                          </Button>
-                        </Link>
+                        <div className="flex items-center gap-2">
+                          {videoByWorkout[workout.id] && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="border-white/30 text-white hover:bg-white/10 text-xs sm:text-sm px-2"
+                              aria-label={`Open video: ${videoByWorkout[workout.id].title}`}
+                              onClick={() => { setCurrentVideo(videoByWorkout[workout.id]); setVideoOpen(true); }}
+                            >
+                              Video
+                            </Button>
+                          )}
+                          <Link href={`/workouts/${workout.id}`}>
+                            <Button 
+                              className={workout.status === 'completed' 
+                                ? 'border-white/30 text-white hover:bg-white/10 text-xs sm:text-sm px-2 w-full sm:w-auto' 
+                                : 'bg-gold hover:bg-gold/90 text-black text-xs sm:text-sm px-2 w-full sm:w-auto'
+                              }
+                              variant={workout.status === 'completed' ? 'outline' : 'default'}
+                              size="sm"
+                            >
+                              {workout.status === 'completed' ? 'View' : 'Continue'}
+                            </Button>
+                          </Link>
+                        </div>
                       </div>
                     </div>
                   </CardContent>
@@ -237,6 +294,14 @@ export default function WorkoutsPage() {
           </Card>
         </TabsContent>
       </Tabs>
+      {currentVideo && (
+        <VideoDialog
+          open={videoOpen}
+          onOpenChange={setVideoOpen}
+          url={currentVideo.url}
+          title={currentVideo.title}
+        />
+      )}
     </div>
   );
 }

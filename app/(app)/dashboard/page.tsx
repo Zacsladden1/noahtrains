@@ -81,11 +81,21 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    if (profile) {
-      loadTargets();
-      fetchDashboardData();
-      loadWeightHistory();
-    }
+    if (!profile) return;
+    let active = true;
+    (async () => {
+      setLoading(true);
+      try {
+        await Promise.all([
+          loadTargets(),
+          fetchDashboardData(),
+          loadWeightHistory(),
+        ]);
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => { active = false; };
   }, [profile]);
 
   const loadTargets = async () => {
@@ -113,92 +123,73 @@ export default function DashboardPage() {
 
     try {
       const today = new Date().toISOString().split('T')[0];
-      
-      // Fetch today's workout
-      const { data: workouts } = await supabase
-        .from('workouts')
-        .select('*')
-        .eq('user_id', profile.id)
-        .gte('created_at', `${today}T00:00:00`)
-        .lte('created_at', `${today}T23:59:59`)
-        .order('created_at', { ascending: false })
-        .limit(1);
+      // Fetch blocks concurrently
+      const [workoutsRes, nutritionRes, waterRes, recentWorkoutsRes] = await Promise.all([
+        supabase
+          .from('workouts')
+          .select('*')
+          .eq('user_id', profile.id)
+          .gte('created_at', `${today}T00:00:00`)
+          .lte('created_at', `${today}T23:59:59`)
+          .order('created_at', { ascending: false })
+          .limit(1),
+        supabase
+          .from('nutrition_logs')
+          .select('*')
+          .eq('user_id', profile.id)
+          .eq('date', today),
+        supabase
+          .from('water_logs')
+          .select('ml')
+          .eq('user_id', profile.id)
+          .eq('date', today),
+        supabase
+          .from('workouts')
+          .select('completed_at')
+          .eq('user_id', profile.id)
+          .not('completed_at', 'is', null)
+          .order('completed_at', { ascending: false })
+          .limit(30),
+      ]);
 
-      if (workouts && workouts.length > 0) {
-        setTodaysWorkout(workouts[0]);
-      }
+      const workouts = (workoutsRes as any)?.data as any[] | null;
+      if (workouts && workouts.length > 0) setTodaysWorkout(workouts[0]);
 
-      // Fetch today's nutrition
-      const { data: nutrition } = await supabase
-        .from('nutrition_logs')
-        .select('*')
-        .eq('user_id', profile.id)
-        .eq('date', today);
-
+      const nutrition = (nutritionRes as any)?.data as NutritionLog[] | null;
       if (nutrition) {
-        const totals = (nutrition as NutritionLog[]).reduce((acc: { calories: number; protein: number; carbs: number; fat: number }, item: NutritionLog) => ({
+        const totals = nutrition.reduce((acc, item) => ({
           calories: acc.calories + (item.calories || 0),
           protein: acc.protein + (item.protein_g || 0),
           carbs: acc.carbs + (item.carbs_g || 0),
           fat: acc.fat + (item.fat_g || 0),
-        }), {
-          calories: 0,
-          protein: 0,
-          carbs: 0,
-          fat: 0,
-        });
+        }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
         setNutritionData(totals);
       }
 
-      // Fetch today's water intake
-      const { data: water } = await supabase
-        .from('water_logs')
-        .select('ml')
-        .eq('user_id', profile.id)
-        .eq('date', today);
+      const water = (waterRes as any)?.data as { ml: number }[] | null;
+      if (water) setWaterIntake(water.reduce((acc, item) => acc + item.ml, 0));
 
-      if (water) {
-        const totalWater = (water as { ml: number }[]).reduce((acc: number, item: { ml: number }) => acc + item.ml, 0);
-        setWaterIntake(totalWater);
-      }
-
-      // Calculate workout streak and weekly count
-      // This is a simplified version - a real implementation would be more sophisticated
-      const { data: recentWorkouts } = await supabase
-        .from('workouts')
-        .select('completed_at')
-        .eq('user_id', profile.id)
-        .not('completed_at', 'is', null)
-        .order('completed_at', { ascending: false })
-        .limit(30);
-
+      const recentWorkouts = (recentWorkoutsRes as any)?.data as { completed_at: string }[] | null;
       if (recentWorkouts) {
-        // Calculate streak (consecutive days with workouts)
         let streak = 0;
-        const today = new Date();
-        const workoutDates = (recentWorkouts as { completed_at: string }[]).map((w: { completed_at: string }) => 
-          new Date(w.completed_at!).toISOString().split('T')[0]
-        );
-        
+        const todayDate = new Date();
+        const workoutDates = recentWorkouts.map((w) => new Date(w.completed_at!).toISOString().split('T')[0]);
         for (let i = 0; i < 30; i++) {
-          const checkDate = new Date(today);
+          const checkDate = new Date(todayDate);
           checkDate.setDate(checkDate.getDate() - i);
           const dateStr = checkDate.toISOString().split('T')[0];
-          
           if (workoutDates.includes(dateStr)) {
             streak++;
-          } else if (i > 0) { // Allow first day to not have workout
+          } else if (i > 0) {
             break;
           }
         }
         setWorkoutStreak(streak);
 
-        // Calculate this week's workouts
         const weekStart = new Date();
         weekStart.setDate(weekStart.getDate() - weekStart.getDay());
         const weekStartStr = weekStart.toISOString().split('T')[0];
-        
-        const weeklyCount = (recentWorkouts as { completed_at: string }[]).filter((w: { completed_at: string }) => {
+        const weeklyCount = recentWorkouts.filter((w) => {
           const workoutDate = new Date(w.completed_at!).toISOString().split('T')[0];
           return workoutDate >= weekStartStr;
         }).length;
@@ -206,8 +197,6 @@ export default function DashboardPage() {
       }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
-    } finally {
-      setLoading(false);
     }
   };
 

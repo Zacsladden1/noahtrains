@@ -1,16 +1,9 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import { Cinzel, Cormorant_Garamond } from 'next/font/google';
-import ChunkErrorReload from '@/components/system/chunk-error-reload';
-import DevSWCleaner from '@/components/system/dev-sw-cleaner';
-import IOSPWABanner from '@/components/system/ios-pwa-banner';
-import SWUpdater from '@/components/system/sw-updater';
-import ClientErrorReporter from '@/components/system/client-error-reporter';
-import { Toaster } from '@/components/ui/toaster';
+import RuntimeExtras from '@/components/system/runtime-extras';
 
-// Avoid serving stale HTML that references old chunks
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+// Allow Next.js to determine the optimal rendering strategy per route
 
 const cinzel = Cinzel({
   subsets: ['latin'],
@@ -62,8 +55,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="black" />
         <meta name="apple-mobile-web-app-title" content="Noahhtrains" />
         <meta name="theme-color" content="#000000" />
-        <link rel="manifest" href={`/site.webmanifest?v=${Date.now()}`} />
-        <meta httpEquiv="Cache-Control" content="no-store, must-revalidate" />
+        <link rel="manifest" href="/site.webmanifest" />
         {isProd && (
           // Early chunk error handler: registers before any client bundle executes (prod only)
           <script
@@ -94,12 +86,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen bg-background text-foreground">
         {children}
-        {!isProd && <DevSWCleaner />}
-        <IOSPWABanner />
-        {isProd && <ChunkErrorReload />}
-        {isProd && <SWUpdater />}
-        {isProd && <ClientErrorReporter />}
-        <Toaster />
+        <RuntimeExtras />
       </body>
     </html>
   );
