@@ -151,9 +151,15 @@ export default function HomePage() {
 
   useEffect(() => {
     if (user && !loading && mounted) {
-      // If onboarding not complete, send to settings
-      const needsOnboarding = (profile as any)?.onboarding_complete === false || (profile as any)?.onboarding_complete == null;
-      const target = needsOnboarding ? '/profile' : (profile?.role === 'coach' ? '/coach' : '/dashboard');
+      // Only redirect to settings if profile has loaded and explicitly needs onboarding
+      const profileLoaded = !!profile && typeof (profile as any)?.onboarding_complete !== 'undefined';
+      const needsOnboarding = profileLoaded && (profile as any)?.onboarding_complete === false;
+      let target = '/dashboard';
+      if (needsOnboarding) {
+        target = '/profile';
+      } else if (profile?.role === 'coach') {
+        target = '/coach';
+      }
       const url = `${target}?v=${Date.now()}`;
       if (typeof window !== 'undefined') {
         window.location.replace(url);
