@@ -26,6 +26,7 @@ export default function LibraryPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchLibraryContent();
@@ -190,18 +191,30 @@ export default function LibraryPage() {
                 <Card key={video.id} className="mobile-card hover:border-gold/50 transition-colors">
                   <CardHeader className="p-0">
                     <div className="relative aspect-video bg-white/10 rounded-t-xl sm:rounded-t-lg overflow-hidden">
-                      {thumbUrl ? (
-                        <img src={thumbUrl} alt="thumbnail" className="w-full h-full object-cover" />
-                      ) : publicUrl ? (
-                        <video src={publicUrl} className="w-full h-full object-cover" controls playsInline preload="metadata" />
+                      {playingVideoId === video.id || !thumbUrl ? (
+                        publicUrl ? (
+                          <video src={publicUrl} className="w-full h-full object-cover" controls autoPlay playsInline preload="metadata" />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-gold/20 to-gold/5 flex items-center justify-center">
+                            <Play className="w-8 h-8 sm:w-12 sm:h-12 text-gold opacity-80" />
+                          </div>
+                        )
                       ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-gold/20 to-gold/5 flex items-center justify-center">
-                          <Play className="w-8 h-8 sm:w-12 sm:h-12 text-gold opacity-80" />
+                        <div
+                          className="relative w-full h-full cursor-pointer group"
+                          onClick={() => setPlayingVideoId(video.id)}
+                        >
+                          <img src={thumbUrl} alt="thumbnail" className="w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-black/40 group-hover:bg-black/60 transition-all flex items-center justify-center">
+                            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gold/90 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                              <Play className="w-6 h-6 sm:w-8 sm:h-8 text-white ml-1" fill="currentColor" />
+                            </div>
+                          </div>
                         </div>
                       )}
-                      
+
                       {/* Duration badge */}
-                      {video.duration_seconds && (
+                      {video.duration_seconds && playingVideoId !== video.id && (
                         <Badge className="absolute bottom-1 sm:bottom-2 right-1 sm:right-2 bg-black/80 text-white text-xs">
                           <Clock className="w-2 h-2 sm:w-3 sm:h-3 mr-1 text-gold" />
                           {formatDuration(video.duration_seconds)}
@@ -264,16 +277,30 @@ export default function LibraryPage() {
                 <Card key={video.id} className="mobile-card hover:border-gold/50 transition-colors">
                   <CardHeader className="p-0">
                     <div className="relative aspect-video bg-white/10 rounded-t-xl sm:rounded-t-lg overflow-hidden">
-                      {thumbUrl ? (
-                        <img src={thumbUrl} alt="thumbnail" className="w-full h-full object-cover" />
-                      ) : publicUrl ? (
-                        <video src={publicUrl} className="w-full h-full object-cover" controls playsInline preload="metadata" />
+                      {playingVideoId === video.id || !thumbUrl ? (
+                        publicUrl ? (
+                          <video src={publicUrl} className="w-full h-full object-cover" controls autoPlay playsInline preload="metadata" />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-gold/20 to-gold/5 flex items-center justify-center">
+                            <Play className="w-8 h-8 sm:w-12 sm:h-12 text-gold opacity-80" />
+                          </div>
+                        )
                       ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-gold/20 to-gold/5 flex items-center justify-center">
-                          <Play className="w-8 h-8 sm:w-12 sm:h-12 text-gold opacity-80" />
+                        <div
+                          className="relative w-full h-full cursor-pointer group"
+                          onClick={() => setPlayingVideoId(video.id)}
+                        >
+                          <img src={thumbUrl} alt="thumbnail" className="w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-black/40 group-hover:bg-black/60 transition-all flex items-center justify-center">
+                            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gold/90 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                              <Play className="w-6 h-6 sm:w-8 sm:h-8 text-white ml-1" fill="currentColor" />
+                            </div>
+                          </div>
                         </div>
                       )}
-                      {video.duration_seconds && (
+
+                      {/* Duration badge */}
+                      {video.duration_seconds && playingVideoId !== video.id && (
                         <Badge className="absolute bottom-1 sm:bottom-2 right-1 sm:right-2 bg-black/80 text-white text-xs">
                           <Clock className="w-2 h-2 sm:w-3 sm:h-3 mr-1 text-gold" />
                           {formatDuration(video.duration_seconds)}
