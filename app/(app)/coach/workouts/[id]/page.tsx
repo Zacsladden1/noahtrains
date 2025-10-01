@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
+import { useAuth } from '@/hooks/use-auth';
 import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,6 +10,7 @@ import { Button } from '@/components/ui/button';
 export default function CoachWorkoutDetailPage() {
   const params = useParams();
   const workoutId = params?.id as string;
+  const { user } = useAuth();
   const [workout, setWorkout] = useState<any | null>(null);
   const [sets, setSets] = useState<any[]>([]);
   const [trend, setTrend] = useState<Record<string, { week: string; avgWeight: number; avgReps: number }[]>>({});
@@ -105,8 +107,30 @@ export default function CoachWorkoutDetailPage() {
         ))
       )}
 
-      <div className="mt-4">
+      <div className="mt-4 flex items-center gap-2">
         <Button variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={() => history.back()}>Back</Button>
+        <Button
+          variant="outline"
+          className="border-red-500/40 text-red-400 hover:bg-red-500/10"
+          onClick={async ()=>{
+            if (!user?.id) return;
+            if (!confirm('Delete this workout? This cannot be undone.')) return;
+            try {
+              const res = await fetch('/api/coach/workouts/delete', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ coachId: user.id, workoutId })
+              });
+              const j = await res.json();
+              if (!res.ok || !j?.ok) throw new Error(j?.error || 'Failed');
+              alert('Workout deleted');
+              history.back();
+            } catch (e:any) {
+              alert(e?.message || 'Failed to delete workout');
+            }
+          }}
+        >
+          Delete workout
+        </Button>
       </div>
     </div>
   );

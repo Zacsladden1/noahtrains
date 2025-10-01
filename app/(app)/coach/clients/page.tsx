@@ -5,17 +5,43 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/hooks/use-auth';
 
 export default function CoachClientsPage() {
   const [q, setQ] = useState('');
   const [clients, setClients] = useState<any[]>([]);
+  const { profile } = useAuth();
 
   useEffect(() => {
+    if (!profile?.id) return;
     (async () => {
-      const { data } = await supabase.from('profiles').select('id, full_name, email, role, created_at, avatar_url, age, current_weight_kg, goal_weight_kg').eq('role', 'client').order('created_at', { ascending: false }).limit(100);
-      setClients(data || []);
+      // Only clients connected to this coach
+      const { data } = await supabase
+        .from('clients')
+        .select('client_id, profiles:client_id(id, full_name, email, created_at, avatar_url, age, current_weight_kg, goal_weight_kg)')
+        .eq('coach_id', profile.id)
+        .order('start_date', { ascending: false });
+      const list = (data || []).map((r: any) => ({ ...(r.profiles || {}), id: r.client_id }));
+      setClients(list);
     })();
-  }, []);
+
+    // Realtime updates: refresh when clients mapping changes
+    const channel = supabase
+      .channel(`coach-clients-${profile.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'clients', filter: `coach_id=eq.${profile.id}` }, async () => {
+        try {
+          const { data } = await supabase
+            .from('clients')
+            .select('client_id, profiles:client_id(id, full_name, email, created_at, avatar_url, age, current_weight_kg, goal_weight_kg)')
+            .eq('coach_id', profile.id)
+            .order('start_date', { ascending: false });
+          const list = (data || []).map((r: any) => ({ ...(r.profiles || {}), id: r.client_id }));
+          setClients(list);
+        } catch {}
+      })
+      .subscribe();
+    return () => { try { supabase.removeChannel(channel); } catch {} };
+  }, [profile?.id]);
 
   const filtered = clients.filter((c) => (c.full_name || '').toLowerCase().includes(q.toLowerCase()) || (c.email || '').toLowerCase().includes(q.toLowerCase()));
 
