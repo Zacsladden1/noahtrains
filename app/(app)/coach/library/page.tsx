@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Play, Trash2, Pencil, Save, X } from 'lucide-react';
 
 export default function CoachLibraryManager() {
+  const MAX_VIDEO_BYTES = 50 * 1024 * 1024; // 50MB typical hosted limit
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [thumbFile, setThumbFile] = useState<File | null>(null);
   const [videoTitle, setVideoTitle] = useState('');
@@ -42,7 +43,7 @@ export default function CoachLibraryManager() {
 
   const uploadToBucket = async (file: File): Promise<string> => {
     const path = `${Date.now()}_${file.name}`.replace(/\s+/g, '_');
-    const { data, error } = await supabase.storage.from('videos').upload(path, file, { cacheControl: '3600', upsert: false });
+    const { data, error } = await supabase.storage.from('videos').upload(path, file, { cacheControl: '3600', upsert: false, contentType: file.type || 'video/mp4' });
     if (error) throw error;
     return data.path;
   };
@@ -56,11 +57,15 @@ export default function CoachLibraryManager() {
 
   const saveVideo = async () => {
     if (!videoFile || !videoTitle) return;
+    if (videoFile.size > MAX_VIDEO_BYTES) {
+      alert(`This file is ${(videoFile.size / (1024*1024)).toFixed(1)}MB. Max allowed is ${(MAX_VIDEO_BYTES / (1024*1024)).toFixed(0)}MB. Please compress or upload a smaller file.`);
+      return;
+    }
     setSaving(true);
     try {
       const storage_path = await uploadToBucket(videoFile);
       const thumbnail_path = thumbFile ? await uploadThumbToBucket(thumbFile) : null;
-      await supabase.from('videos').insert({
+      const { error: insErr } = await supabase.from('videos').insert({
         title: videoTitle,
         description: '',
         category: videoCategory || null,
@@ -70,10 +75,15 @@ export default function CoachLibraryManager() {
         section: videoSection,
         thumbnail_path,
       });
+      if (insErr) throw insErr;
       setVideoFile(null); setThumbFile(null); setVideoTitle(''); setVideoCategory(''); setVideoTags('');
       setVideoSection('form');
       alert('Video uploaded');
       await refreshLists();
+    } catch (e: any) {
+      const msg = e?.message || 'Upload failed. Ensure you are a coach/admin and signed in.';
+      alert(msg);
+      console.error('Upload video failed:', e);
     } finally {
       setSaving(false);
     }
@@ -84,7 +94,7 @@ export default function CoachLibraryManager() {
     setSaving(true);
     try {
       const storage_path = await uploadToBucket(docFile);
-      await supabase.from('documents').insert({
+      const { error: insErr } = await supabase.from('documents').insert({
         title: docTitle,
         description: '',
         category: docCategory || null,
@@ -95,9 +105,14 @@ export default function CoachLibraryManager() {
         file_size: docFile.size,
         section: 'documents',
       });
+      if (insErr) throw insErr;
       setDocFile(null); setDocTitle(''); setDocCategory(''); setDocTags('');
       alert('Document uploaded');
       await refreshLists();
+    } catch (e: any) {
+      const msg = e?.message || 'Upload failed. Ensure you are a coach/admin and signed in.';
+      alert(msg);
+      console.error('Upload document failed:', e);
     } finally {
       setSaving(false);
     }
@@ -144,6 +159,12 @@ export default function CoachLibraryManager() {
             <div>
               <Label className="text-white/80 text-sm">Video file</Label>
               <Input type="file" accept="video/*" onChange={(e)=>setVideoFile(e.target.files?.[0] || null)} className="mobile-input mt-1" />
+              <div className="text-white/50 text-xs mt-1">Max {(MAX_VIDEO_BYTES/(1024*1024)).toFixed(0)}MB • mp4/mov/webm</div>
+              {videoFile && (
+                <div className="text-white/60 text-xs mt-1">
+                  Selected: {videoFile.name} — {(videoFile.size/(1024*1024)).toFixed(1)}MB
+                </div>
+              )}
             </div>
             <div>
               <Label className="text-white/80 text-sm">Thumbnail (optional)</Label>
