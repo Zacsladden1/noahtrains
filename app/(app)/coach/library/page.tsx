@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Play, Trash2, Pencil, Save, X } from 'lucide-react';
+import { Play, Trash2, Pencil, Save, X, Image as ImageIcon } from 'lucide-react';
 
 export default function CoachLibraryManager() {
   const MAX_VIDEO_BYTES = 50 * 1024 * 1024; // 50MB typical hosted limit
@@ -53,6 +53,11 @@ export default function CoachLibraryManager() {
     const { data, error } = await supabase.storage.from('videos').upload(path, file, { cacheControl: '3600', upsert: false, contentType: file.type || 'image/jpeg' });
     if (error) throw error;
     return data.path;
+  };
+
+  const getPublicUrl = (path?: string | null) => {
+    if (!path) return '';
+    try { return supabase.storage.from('videos').getPublicUrl(path).data.publicUrl || ''; } catch { return ''; }
   };
 
   const saveVideo = async () => {
@@ -122,6 +127,28 @@ export default function CoachLibraryManager() {
     await supabase.from('videos').update({ title: v.title, description: v.description || null, category: v.category || null, tags: v.tags || null }).eq('id', v.id);
     setEditingVideoId(null);
     await refreshLists();
+  };
+
+  const uploadNewThumbnail = async (v: any, file: File) => {
+    try {
+      const newPath = await uploadThumbToBucket(file);
+      // Optionally remove old thumb
+      try { if (v.thumbnail_path) await supabase.storage.from('videos').remove([v.thumbnail_path]); } catch {}
+      await supabase.from('videos').update({ thumbnail_path: newPath }).eq('id', v.id);
+      await refreshLists();
+    } catch (e: any) {
+      alert(e?.message || 'Failed to upload thumbnail');
+    }
+  };
+
+  const removeThumbnail = async (v: any) => {
+    try {
+      if (v.thumbnail_path) { try { await supabase.storage.from('videos').remove([v.thumbnail_path]); } catch {} }
+      await supabase.from('videos').update({ thumbnail_path: null }).eq('id', v.id);
+      await refreshLists();
+    } catch (e: any) {
+      alert(e?.message || 'Failed to remove thumbnail');
+    }
   };
 
   const deleteVideo = async (v: any) => {
@@ -211,6 +238,29 @@ export default function CoachLibraryManager() {
                     <Input value={v.title || ''} onChange={(e)=>setVideos(prev=>prev.map(x=>x.id===v.id?{...x,title:e.target.value}:x))} className="mobile-input" />
                     <Input placeholder="Category" value={v.category || ''} onChange={(e)=>setVideos(prev=>prev.map(x=>x.id===v.id?{...x,category:e.target.value}:x))} className="mobile-input" />
                     <Input placeholder="Tags (comma)" value={(v.tags||[]).join(', ')} onChange={(e)=>setVideos(prev=>prev.map(x=>x.id===v.id?{...x,tags:e.target.value.split(',').map((t)=>t.trim())}:x))} className="mobile-input" />
+                    <div className="col-span-1 sm:col-span-2 border border-white/10 rounded p-2">
+                      <div className="text-white/80 text-xs mb-2">Thumbnail</div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-20 h-12 rounded overflow-hidden bg-white/10 flex items-center justify-center">
+                          {v.thumbnail_path ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={getPublicUrl(v.thumbnail_path)} alt="thumb" className="w-full h-full object-cover" />
+                          ) : (
+                            <ImageIcon className="w-6 h-6 text-white/40" />
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input id={`thumb-input-${v.id}`} type="file" accept="image/*" className="hidden" onChange={(e)=>{ const f=e.target.files?.[0]; if (f) uploadNewThumbnail(v, f); }} />
+                          <Button type="button" variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={(ev)=>{
+                            ev.preventDefault(); ev.stopPropagation();
+                            try { const el = document.getElementById(`thumb-input-${v.id}`) as HTMLInputElement | null; el?.click(); } catch {}
+                          }}>Upload</Button>
+                          {v.thumbnail_path && (
+                            <Button type="button" variant="outline" className="border-red-500/40 text-red-400 hover:bg-red-500/10" onClick={()=>removeThumbnail(v)}>Remove</Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                     <div className="flex gap-2 justify-end col-span-1 sm:col-span-2">
                       <Button size="sm" className="bg-gold text-black" onClick={()=>updateVideoMeta(v)}><Save className="w-4 h-4 mr-1" />Save</Button>
                       <Button size="sm" variant="outline" className="border-white/30 text-white" onClick={()=>setEditingVideoId(null)}><X className="w-4 h-4 mr-1" />Cancel</Button>

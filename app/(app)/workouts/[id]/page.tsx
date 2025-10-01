@@ -131,7 +131,12 @@ export default function ClientWorkoutDetailPage() {
         const { data: rel } = await supabase.from('clients').select('coach_id').eq('client_id', (workout as any)?.user_id).maybeSingle();
         const coachId = rel?.coach_id;
         if (coachId) {
-          await fetch('/api/push/broadcast', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userIds: [coachId], payload: { title: 'Workout completed', body: `${(workout as any)?.name || 'Workout'} completed`, url: '/coach' } }) });
+          try {
+            const { data: prof } = await supabase.from('profiles').select('full_name, email').eq('id', (workout as any)?.user_id).maybeSingle();
+            const who = (prof?.full_name || prof?.email || 'Client');
+            const what = (workout as any)?.name || 'Workout';
+            await fetch('/api/push/broadcast', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userIds: [coachId], payload: { title: 'Workout completed', body: `${who} completed ${what}`, url: '/coach' } }) });
+          } catch {}
         }
       } catch {}
     } finally { setSaving(false); }
@@ -218,8 +223,16 @@ export default function ClientWorkoutDetailPage() {
                     <span className="text-white/60 text-xs">reps</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Input type="number" inputMode="decimal" value={s.weight_kg}
-                      onChange={(e)=>saveSet(s.id,{ weight_kg: Number(e.target.value||0) })}
+                    <Input
+                      type="text"
+                      inputMode="decimal"
+                      value={s.weight_input ?? ''}
+                      onChange={(e)=>{
+                        let v = (e.target.value || '').replace(/[^0-9.,]/g, '');
+                        const parsed = parseFloat(v.replace(',', '.'));
+                        saveSet(s.id,{ weight_input: v, weight_kg: isNaN(parsed) ? 0 : parsed });
+                      }}
+                      placeholder={Number(s.weight_kg || 0) ? String(s.weight_kg) : undefined}
                       className="mobile-input w-20 sm:w-24" />
                     <span className="text-white/60 text-xs">kg</span>
                   </div>
