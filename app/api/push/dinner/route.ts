@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import webpush from 'web-push';
 
-export async function POST(req: NextRequest) {
+async function handler(req: NextRequest) {
   try {
     const cronSecret = process.env.CRON_SECRET;
     if (cronSecret) {
@@ -63,6 +63,14 @@ export async function POST(req: NextRequest) {
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || 'Failed' }, { status: 500 });
   }
+}
+
+export async function GET(req: NextRequest) {
+  return handler(req);
+}
+
+export async function POST(req: NextRequest) {
+  return handler(req);
 }
 
 
