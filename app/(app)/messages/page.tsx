@@ -177,10 +177,10 @@ export default function MessagesPage() {
         .eq('thread_id', tid)
         .order('created_at', { ascending: true });
       setCoachMsgs(dedupeById(data || []));
-      // Scroll to bottom after initial fetch
-      requestAnimationFrame(() => {
+      // Scroll to bottom after initial fetch - use setTimeout to ensure DOM is updated
+      setTimeout(() => {
         try { if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight; } catch {}
-      });
+      }, 100);
     } catch (e) {
       console.error('Error fetching messages:', e);
     }
@@ -202,9 +202,9 @@ export default function MessagesPage() {
         .eq('thread_id', g.id)
         .order('created_at', { ascending: true });
       setCommunityMsgs(dedupeById(data || []));
-      requestAnimationFrame(() => {
+      setTimeout(() => {
         try { if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight; } catch {}
-      });
+      }, 100);
     } catch (e) { console.error('Error fetching group messages:', e); }
   };
 

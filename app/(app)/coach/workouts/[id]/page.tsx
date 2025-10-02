@@ -107,25 +107,45 @@ export default function CoachWorkoutDetailPage() {
         ))
       )}
 
-      <div className="mt-4 flex items-center gap-2">
+      <div className="mt-4 flex items-center gap-2 flex-wrap">
         <Button variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={() => history.back()}>Back</Button>
         <Button
           variant="outline"
           className="border-red-500/40 text-red-400 hover:bg-red-500/10"
           onClick={async ()=>{
             if (!user?.id) return;
-            if (!confirm('Delete this workout? This cannot be undone.')) return;
-            try {
-              const res = await fetch('/api/coach/workouts/delete', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ coachId: user.id, workoutId })
-              });
-              const j = await res.json();
-              if (!res.ok || !j?.ok) throw new Error(j?.error || 'Failed');
-              alert('Workout deleted');
-              history.back();
-            } catch (e:any) {
-              alert(e?.message || 'Failed to delete workout');
+            const choice = confirm('Delete this workout?\n\nOK = Delete only this day\nCancel = See more options');
+            if (choice) {
+              // Delete only this day
+              try {
+                const res = await fetch('/api/coach/workouts/delete', {
+                  method: 'POST', headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ coachId: user.id, workoutId, deleteAll: false })
+                });
+                const j = await res.json();
+                if (!res.ok || !j?.ok) throw new Error(j?.error || 'Failed');
+                alert('Workout deleted');
+                history.back();
+              } catch (e:any) {
+                alert(e?.message || 'Failed to delete workout');
+              }
+            } else {
+              // Show option to delete all future
+              const deleteAll = confirm('Delete all future occurrences of this workout?\n\nThis will delete all future workouts with the same name.');
+              if (deleteAll) {
+                try {
+                  const res = await fetch('/api/coach/workouts/delete', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ coachId: user.id, workoutId, deleteAll: true })
+                  });
+                  const j = await res.json();
+                  if (!res.ok || !j?.ok) throw new Error(j?.error || 'Failed');
+                  alert('All future workouts deleted');
+                  history.back();
+                } catch (e:any) {
+                  alert(e?.message || 'Failed to delete workouts');
+                }
+              }
             }
           }}
         >

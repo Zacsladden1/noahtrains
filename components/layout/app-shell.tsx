@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
 import { 
@@ -61,6 +61,7 @@ const coachNavItems = [
 export function AppShell({ children }: AppShellProps) {
   const { profile, signOut, isAdmin } = useAuth();
   const pathname = usePathname();
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const isCoach = profile?.role === 'coach';
@@ -69,6 +70,19 @@ export function AppShell({ children }: AppShellProps) {
     : isAdmin
     ? adminNavItems
     : clientNavItems;
+
+  // Listen for navigation messages from service worker
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === 'NAVIGATE' && event.data.url) {
+        router.push(event.data.url);
+      }
+    };
+    navigator.serviceWorker?.addEventListener('message', handleMessage);
+    return () => {
+      navigator.serviceWorker?.removeEventListener('message', handleMessage);
+    };
+  }, [router]);
 
   // Unread count for client messages
   const [unreadCount, setUnreadCount] = useState(0);

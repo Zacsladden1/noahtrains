@@ -54,20 +54,45 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const target = (event.notification && event.notification.data && event.notification.data.url) || '/dashboard';
+
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // Try to focus existing window first
-      for (const client of clientList) {
-        if (client.url === self.registration.scope + target.slice(1) && 'focus' in client) {
-          return client.focus().then(() => client.navigate(target));
+    (async () => {
+      try {
+        const clientList = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+
+        // Get base URL from registration scope
+        const baseUrl = self.registration.scope;
+        const fullUrl = new URL(target, baseUrl).href;
+
+        // Try to find and focus an existing window
+        for (const client of clientList) {
+          try {
+            if (client.url.startsWith(baseUrl)) {
+              await client.focus();
+              // Use postMessage instead of navigate for better compatibility
+              client.postMessage({ type: 'NAVIGATE', url: target });
+              return;
+            }
+          } catch (e) {
+            console.error('Error focusing client:', e);
+          }
+        }
+
+        // If no window found, open a new one
+        if (clients.openWindow) {
+          await clients.openWindow(fullUrl);
+        }
+      } catch (e) {
+        console.error('Notification click error:', e);
+        // Fallback: try to open a new window
+        try {
+          if (clients.openWindow) {
+            await clients.openWindow(self.registration.scope);
+          }
+        } catch (fallbackError) {
+          console.error('Fallback error:', fallbackError);
         }
       }
-      // Focus any window and navigate
-      if (clientList.length > 0) {
-        return clientList[0].focus().then(() => clientList[0].navigate(target));
-      }
-      // Open new window
-      if (clients.openWindow) return clients.openWindow(target);
-    })
+    })()
   );
 });
