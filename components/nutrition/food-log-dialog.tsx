@@ -48,6 +48,10 @@ export function FoodLogDialog({
     sodium_mg: 0,
   });
   const [showScanner, setShowScanner] = useState(false);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [showAutocomplete, setShowAutocomplete] = useState(false);
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
   // String states for numeric inputs so users can delete/clear easily on mobile
   const [servingQtyStr, setServingQtyStr] = useState<string>('1');
   const [calStr, setCalStr] = useState<string>('0');
@@ -109,6 +113,119 @@ export function FoodLogDialog({
     setCalStr('0'); setProStr('0'); setCarbStr('0'); setFatStr('0'); setFiberStr('0'); setSugarStr('0'); setSodiumStr('0');
   };
 
+  const handleSearchFood = async (query: string) => {
+    if (!query.trim()) {
+      setSearchResults([]);
+      setShowAutocomplete(false);
+      return;
+    }
+    setSearching(true);
+    try {
+      // Search UK products first
+      const res = await fetch(`https://uk.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=10&tagtype_0=countries&tag_contains_0=contains&tag_0=united-kingdom`);
+      const data = await res.json();
+      setSearchResults(data.products || []);
+      setShowAutocomplete(true);
+    } catch (e) {
+      console.error('Search failed', e);
+      setSearchResults([]);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const handleFoodNameChange = (value: string) => {
+    update('food_name', value);
+
+    // Clear existing timeout
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+
+    // Set new timeout to search after user stops typing
+    if (value.trim().length >= 3) {
+      const timeout = setTimeout(() => {
+        handleSearchFood(value);
+      }, 500);
+      setSearchTimeout(timeout);
+    } else {
+      setSearchResults([]);
+      setShowAutocomplete(false);
+    }
+  };
+
+  const handleSelectSearchResult = (p: any) => {
+    populateFromProduct(p);
+    setShowAutocomplete(false);
+    setSearchResults([]);
+  };
+
+  const populateFromProduct = (p: any) => {
+    const nutr = p.nutriments || {};
+    // Set base per-100 values for scaling
+    const basePer100 = {
+      cal: Number(nutr['energy-kcal_100g']) || 0,
+      pro: Number(nutr.proteins_100g) || 0,
+      carb: Number(nutr.carbohydrates_100g) || 0,
+      fat: Number(nutr.fat_100g) || 0,
+      fiber: Number(nutr.fiber_100g) || 0,
+      sugar: Number(nutr.sugars_100g) || 0,
+      sodium: Math.round((Number(nutr.sodium_100g) || 0) * 1000),
+    };
+    setPer100(basePer100);
+
+    // Try to parse serving size like "30 g" or "1 cup (240 ml)" → prefer grams/ml
+    let qty = 1;
+    let unit: string = 'serving';
+    const ss = (p.serving_size || '').toString();
+    const match = ss.match(/([0-9]+(?:[\.,][0-9]+)?)\s*(g|ml|kg|l)/i) || ss.match(/\(([^\)]*)\)/);
+    if (match) {
+      const txt = match[1] && match[2] ? `${match[1]} ${match[2]}` : (match[1] || '');
+      const m2 = txt.match(/([0-9]+(?:[\.,][0-9]+)?)\s*(g|ml|kg|l)/i);
+      if (m2) {
+        qty = parseFloat(m2[1].replace(',', '.')) || 1;
+        unit = m2[2].toLowerCase();
+        if (unit === 'kg') { qty = qty * 1000; unit = 'g'; }
+        if (unit === 'l') { qty = qty * 1000; unit = 'ml'; }
+      }
+    }
+    // Prefer g/ml for clarity
+    let nextUnit = unit === 'kg' ? 'g' : unit === 'l' ? 'ml' : unit;
+    // Default to grams if we couldn't parse a concrete unit
+    if (!nextUnit || nextUnit === 'serving') {
+      nextUnit = 'g';
+      qty = 100;
+    }
+    setForm((f) => ({
+      ...f,
+      food_name: p.product_name || f.food_name,
+      brand: p.brands || f.brand,
+      serving_unit: nextUnit || f.serving_unit,
+    }));
+    setServingQtyStr(String(qty));
+    setServingRefGrams(nextUnit === 'g' ? qty : nextUnit === 'ml' ? qty : null);
+
+    // If per-serving macros exist, use those, else scale per-100 by qty
+    const calServ = Number(nutr['energy-kcal_serving']);
+    const proServ = Number(nutr.proteins_serving);
+    const carbServ = Number(nutr.carbohydrates_serving);
+    const fatServ = Number(nutr.fat_serving);
+    const fiberServ = Number(nutr.fiber_serving);
+    const sugarServ = Number(nutr.sugars_serving);
+    const sodiumServ = Number(nutr.sodium_serving) ? Math.round(Number(nutr.sodium_serving) * 1000) : undefined;
+
+    const grams = nextUnit === 'g' ? qty : nextUnit === 'ml' ? qty : 0;
+    const scale = grams > 0 ? grams / 100 : 1;
+    setCalStr(String(Number.isFinite(calServ) && calServ > 0 ? Math.round(calServ) : Math.round(basePer100.cal * scale)));
+    setProStr(String(Number.isFinite(proServ) && proServ > 0 ? proServ : +(basePer100.pro * scale).toFixed(1)));
+    setCarbStr(String(Number.isFinite(carbServ) && carbServ > 0 ? carbServ : +(basePer100.carb * scale).toFixed(1)));
+    setFatStr(String(Number.isFinite(fatServ) && fatServ > 0 ? fatServ : +(basePer100.fat * scale).toFixed(1)));
+    setFiberStr(String(Number.isFinite(fiberServ) && fiberServ > 0 ? fiberServ : +(basePer100.fiber * scale).toFixed(1)));
+    setSugarStr(String(Number.isFinite(sugarServ) && sugarServ > 0 ? sugarServ : +(basePer100.sugar * scale).toFixed(1)));
+    setSodiumStr(String(Number.isFinite(sodiumServ as any) && (sodiumServ as any) > 0 ? sodiumServ : Math.round(basePer100.sodium * scale)));
+    setAutoScale(true);
+  };
+
   const onBarcodeDetected = async (code: string) => {
     try {
       const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json`);
@@ -119,69 +236,7 @@ export function FoodLogDialog({
         setShowScanner(false);
         return;
       }
-      const nutr = p.nutriments || {};
-      // Set base per-100 values for scaling
-      const basePer100 = {
-        cal: Number(nutr['energy-kcal_100g']) || 0,
-        pro: Number(nutr.proteins_100g) || 0,
-        carb: Number(nutr.carbohydrates_100g) || 0,
-        fat: Number(nutr.fat_100g) || 0,
-        fiber: Number(nutr.fiber_100g) || 0,
-        sugar: Number(nutr.sugars_100g) || 0,
-        sodium: Math.round((Number(nutr.sodium_100g) || 0) * 1000),
-      };
-      setPer100(basePer100);
-
-      // Try to parse serving size like "30 g" or "1 cup (240 ml)" → prefer grams/ml
-      let qty = 1;
-      let unit: string = 'serving';
-      const ss = (p.serving_size || '').toString();
-      const match = ss.match(/([0-9]+(?:[\.,][0-9]+)?)\s*(g|ml|kg|l)/i) || ss.match(/\(([^\)]*)\)/);
-      if (match) {
-        const txt = match[1] && match[2] ? `${match[1]} ${match[2]}` : (match[1] || '');
-        const m2 = txt.match(/([0-9]+(?:[\.,][0-9]+)?)\s*(g|ml|kg|l)/i);
-        if (m2) {
-          qty = parseFloat(m2[1].replace(',', '.')) || 1;
-          unit = m2[2].toLowerCase();
-          if (unit === 'kg') { qty = qty * 1000; unit = 'g'; }
-          if (unit === 'l') { qty = qty * 1000; unit = 'ml'; }
-        }
-      }
-      // Prefer g/ml for clarity
-      let nextUnit = unit === 'kg' ? 'g' : unit === 'l' ? 'ml' : unit;
-      // Default to grams if we couldn't parse a concrete unit
-      if (!nextUnit || nextUnit === 'serving') {
-        nextUnit = 'g';
-        qty = 100;
-      }
-      setForm((f) => ({
-        ...f,
-        food_name: p.product_name || f.food_name,
-        brand: p.brands || f.brand,
-        serving_unit: nextUnit || f.serving_unit,
-      }));
-      setServingQtyStr(String(qty));
-      setServingRefGrams(nextUnit === 'g' ? qty : nextUnit === 'ml' ? qty : null);
-
-      // If per-serving macros exist, use those, else scale per-100 by qty
-      const calServ = Number(nutr['energy-kcal_serving']);
-      const proServ = Number(nutr.proteins_serving);
-      const carbServ = Number(nutr.carbohydrates_serving);
-      const fatServ = Number(nutr.fat_serving);
-      const fiberServ = Number(nutr.fiber_serving);
-      const sugarServ = Number(nutr.sugars_serving);
-      const sodiumServ = Number(nutr.sodium_serving) ? Math.round(Number(nutr.sodium_serving) * 1000) : undefined;
-
-      const grams = nextUnit === 'g' ? qty : nextUnit === 'ml' ? qty : 0;
-      const scale = grams > 0 ? grams / 100 : 1;
-      setCalStr(String(Number.isFinite(calServ) && calServ > 0 ? Math.round(calServ) : Math.round(basePer100.cal * scale)));
-      setProStr(String(Number.isFinite(proServ) && proServ > 0 ? proServ : +(basePer100.pro * scale).toFixed(1)));
-      setCarbStr(String(Number.isFinite(carbServ) && carbServ > 0 ? carbServ : +(basePer100.carb * scale).toFixed(1)));
-      setFatStr(String(Number.isFinite(fatServ) && fatServ > 0 ? fatServ : +(basePer100.fat * scale).toFixed(1)));
-      setFiberStr(String(Number.isFinite(fiberServ) && fiberServ > 0 ? fiberServ : +(basePer100.fiber * scale).toFixed(1)));
-      setSugarStr(String(Number.isFinite(sugarServ) && sugarServ > 0 ? sugarServ : +(basePer100.sugar * scale).toFixed(1)));
-      setSodiumStr(String(Number.isFinite(sodiumServ as any) && (sodiumServ as any) > 0 ? sodiumServ : Math.round(basePer100.sodium * scale)));
-      setAutoScale(true);
+      populateFromProduct(p);
       setShowScanner(false);
     } catch (e) {
       console.error('Barcode lookup failed', e);
@@ -220,9 +275,42 @@ export function FoodLogDialog({
               </div>
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 sm:pt-0">
-              <div>
+              <div className="relative">
                 <Label htmlFor="food" className="text-white/80 text-sm">Food name</Label>
-                  <Input id="food" value={form.food_name} onChange={(e) => update('food_name', e.target.value)} className="mobile-input mt-1 h-12 text-base" placeholder="e.g., Chicken breast (per 100g unless specified)" />
+                <Input
+                  id="food"
+                  value={form.food_name}
+                  onChange={(e) => handleFoodNameChange(e.target.value)}
+                  onFocus={() => form.food_name.length >= 3 && searchResults.length > 0 && setShowAutocomplete(true)}
+                  onBlur={() => setTimeout(() => setShowAutocomplete(false), 200)}
+                  className="mobile-input mt-1 h-12 text-base"
+                  placeholder="Start typing to search... e.g., lidl chicken breast"
+                />
+                {searching && (
+                  <div className="absolute right-3 top-9 text-white/50 text-xs">
+                    Searching...
+                  </div>
+                )}
+                {showAutocomplete && searchResults.length > 0 && (
+                  <div className="absolute z-50 w-full mt-1 bg-black/95 rounded-lg border border-white/20 max-h-80 overflow-y-auto shadow-xl">
+                    {searchResults.map((product: any, idx: number) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => handleSelectSearchResult(product)}
+                        className="w-full text-left p-3 hover:bg-white/10 border-b border-white/10 last:border-b-0"
+                      >
+                        <div className="text-white text-sm font-semibold">{product.product_name || 'Unknown'}</div>
+                        {product.brands && <div className="text-white/60 text-xs">{product.brands}</div>}
+                        {product.nutriments && (
+                          <div className="text-white/50 text-xs mt-1">
+                            {product.nutriments['energy-kcal_100g'] ? `${Math.round(product.nutriments['energy-kcal_100g'])} kcal/100g` : 'No nutrition data'}
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               <div>
                 <Label htmlFor="brand" className="text-white/80 text-sm">Brand (optional)</Label>

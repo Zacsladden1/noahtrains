@@ -47,16 +47,26 @@ async function handler(req: NextRequest) {
         .eq('kind', 'motivation')
         .eq('ymd', ymd)
         .maybeSingle();
-      if (existing?.id) continue;
+      if (existing?.id) {
+        results.push({ user: u.id, skipped: 'already_sent_today', ymd });
+        continue;
+      }
       await admin.from('notification_events').insert({ user_id: u.id, kind: 'motivation', ymd });
 
       const { data: subs } = await admin
         .from('push_subscriptions')
         .select('endpoint, p256dh, auth')
         .eq('user_id', u.id);
+
+      if (!subs || subs.length === 0) {
+        results.push({ user: u.id, skipped: 'no_subscriptions' });
+        continue;
+      }
+
       const payload = JSON.stringify({ title: 'Reminder', body: 'Eat up, hit your macros, and don\'t ghost your tracking app today!', url: '/nutrition' });
       const sent = await Promise.allSettled((subs || []).map((s: any) => webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } } as any, payload)));
-      results.push({ user: u.id, sent: sent.filter(r=>r.status==='fulfilled').length });
+      const failures = sent.filter(r=>r.status==='rejected').map((r: any)=>r.reason?.message);
+      results.push({ user: u.id, sent: sent.filter(r=>r.status==='fulfilled').length, failures });
     }
 
     return NextResponse.json({ ok: true, results });
