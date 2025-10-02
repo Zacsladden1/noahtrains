@@ -72,7 +72,6 @@ export function AppShell({ children }: AppShellProps) {
 
   // Unread count for client messages
   const [unreadCount, setUnreadCount] = useState(0);
-  const [hasAnyThreadMessages, setHasAnyThreadMessages] = useState(false);
   useEffect(() => {
     const load = async () => {
       if (profile?.role !== 'client') return;
@@ -81,7 +80,6 @@ export function AppShell({ children }: AppShellProps) {
         .select('id, last_message_at, last_viewed_by_client_at')
         .eq('client_id', profile.id);
       const threads = data || [];
-      setHasAnyThreadMessages(threads.some((t:any)=> !!t.last_message_at));
       const count = threads.filter((t: any) => t.last_message_at && (!t.last_viewed_by_client_at || new Date(t.last_message_at).getTime() > new Date(t.last_viewed_by_client_at).getTime())).length;
       setUnreadCount(count);
     };
@@ -96,7 +94,7 @@ export function AppShell({ children }: AppShellProps) {
   }, [profile?.id, profile?.role]);
 
   const renderLabelWithBadge = (item: any) => {
-    const showBadge = item.href === '/messages' && unreadCount > 0 && hasAnyThreadMessages && profile?.role === 'client';
+    const showBadge = item.href === '/messages' && unreadCount > 0 && profile?.role === 'client';
     return (
       <div className="relative inline-flex items-center">
         <span>{item.label}</span>

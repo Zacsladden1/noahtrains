@@ -40,7 +40,7 @@ export default function CoachClientDetailPage() {
   const [flexGapDaysStr, setFlexGapDaysStr] = useState<string>('1');
   const [sessions, setSessions] = useState<any[]>([]);
   const [sessLoading, setSessLoading] = useState(false);
-  const [videoPickerOpen, setVideoPickerOpen] = useState(false);
+  const [videoPickerOpen, setVideoPickerOpen] = useState<{ open: boolean; idx: number | null }>({ open: false, idx: null });
   const [videoOptions, setVideoOptions] = useState<Array<{ id: string; title: string }>>([]);
   const [selectedVideoId, setSelectedVideoId] = useState<string>('');
 
@@ -418,7 +418,8 @@ export default function CoachClientDetailPage() {
                         className="border-white/30 text-white hover:bg-white/10 h-10"
                         type="button"
                         onClick={async ()=>{
-                          setVideoPickerOpen(true);
+                          setVideoPickerOpen({ open: true, idx });
+                          setSelectedVideoId(row.videoId || '');
                           try {
                             const { data } = await supabase
                               .from('videos')
@@ -427,17 +428,6 @@ export default function CoachClientDetailPage() {
                               .order('title', { ascending: true });
                             setVideoOptions((data || []).map((v:any)=>({ id: v.id, title: v.title || 'Untitled' })));
                           } catch { setVideoOptions([]); }
-                          // store chosen video into this row when picker closes using selectedVideoId
-                          const onClose = () => {
-                            if (selectedVideoId) {
-                              setExRows(prev => prev.map((r,i)=> i===idx ? { ...r, videoId: selectedVideoId } : r));
-                            }
-                          };
-                          const handler = (open: boolean) => { if (!open) onClose(); };
-                          // quick attach to dialog open state without extra prop drilling
-                          setVideoPickerOpen(true);
-                          // attach temporary listener via microtask; dialog onOpenChange will call setVideoPickerOpen
-                          Promise.resolve().then(()=>handler(false));
                         }}
                       >
                         {row.videoId ? 'Change video' : 'Add video'}
@@ -479,11 +469,14 @@ export default function CoachClientDetailPage() {
           </DialogContent>
         </Dialog>
         {/* Video Picker */}
-        <Dialog open={videoPickerOpen} onOpenChange={(o)=>{
-          setVideoPickerOpen(o);
-          if (!o && selectedVideoId) {
-            // no-op here; per-row handler already applies when closing via button flow
+        <Dialog open={videoPickerOpen.open} onOpenChange={(o)=>{
+          if (!o && videoPickerOpen.idx !== null) {
+            // Apply the selected video to the specific row
+            if (selectedVideoId) {
+              setExRows(prev => prev.map((r, i) => i === videoPickerOpen.idx ? { ...r, videoId: selectedVideoId } : r));
+            }
           }
+          setVideoPickerOpen({ open: o, idx: o ? videoPickerOpen.idx : null });
         }}>
           <DialogContent className="bg-black border border-white/20 text-white max-w-md">
             <DialogHeader>
@@ -506,8 +499,19 @@ export default function CoachClientDetailPage() {
               )}
             </div>
             <div className="flex justify-end gap-2 mt-3">
-              <Button variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={()=>{ setSelectedVideoId(''); setVideoPickerOpen(false); }}>Clear</Button>
-              <Button className="bg-gold hover:bg-gold/90 text-black" onClick={()=> setVideoPickerOpen(false)}>Done</Button>
+              <Button variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={()=>{
+                setSelectedVideoId('');
+                if (videoPickerOpen.idx !== null) {
+                  setExRows(prev => prev.map((r, i) => i === videoPickerOpen.idx ? { ...r, videoId: '' } : r));
+                }
+                setVideoPickerOpen({ open: false, idx: null });
+              }}>Clear</Button>
+              <Button className="bg-gold hover:bg-gold/90 text-black" onClick={()=> {
+                if (videoPickerOpen.idx !== null && selectedVideoId) {
+                  setExRows(prev => prev.map((r, i) => i === videoPickerOpen.idx ? { ...r, videoId: selectedVideoId } : r));
+                }
+                setVideoPickerOpen({ open: false, idx: null });
+              }}>Done</Button>
             </div>
           </DialogContent>
         </Dialog>

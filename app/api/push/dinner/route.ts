@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
         .from('push_subscriptions')
         .select('endpoint, p256dh, auth')
         .eq('user_id', u.id);
-      const payload = JSON.stringify({ title: 'Dinner time', body: 'Quick reminder to log your dinner today.', url: '/nutrition' });
+      const payload = JSON.stringify({ title: 'Friendly Nudge', body: 'Your workout isn\'t going to do itself, go crush it 💪', url: '/workouts' });
       const sent = await Promise.allSettled((subs || []).map((s: any) => webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } } as any, payload)));
       results.push({ user: u.id, sent: sent.filter(r=>r.status==='fulfilled').length });
     }

@@ -56,9 +56,17 @@ self.addEventListener('notificationclick', (event) => {
   const target = (event.notification && event.notification.data && event.notification.data.url) || '/dashboard';
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // Try to focus existing window first
       for (const client of clientList) {
-        if ('focus' in client) return client.focus();
+        if (client.url === self.registration.scope + target.slice(1) && 'focus' in client) {
+          return client.focus().then(() => client.navigate(target));
+        }
       }
+      // Focus any window and navigate
+      if (clientList.length > 0) {
+        return clientList[0].focus().then(() => clientList[0].navigate(target));
+      }
+      // Open new window
       if (clients.openWindow) return clients.openWindow(target);
     })
   );
