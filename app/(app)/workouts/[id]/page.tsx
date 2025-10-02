@@ -18,7 +18,6 @@ export default function ClientWorkoutDetailPage() {
   const [saving, setSaving] = useState(false);
   const [videoLinksByExercise, setVideoLinksByExercise] = useState<Record<string, { url: string; title: string }>>({});
   const normalize = (s: any) => (String(s || '').trim().toLowerCase());
-  const [workoutVideo, setWorkoutVideo] = useState<{ url: string; title: string } | null>(null);
   const [videoOpen, setVideoOpen] = useState(false);
   const [currentVideo, setCurrentVideo] = useState<{ url: string; title?: string } | null>(null);
 
@@ -65,22 +64,6 @@ export default function ClientWorkoutDetailPage() {
         const normalized: Record<string, { url: string; title: string }> = {};
         for (const [k, v] of Object.entries(map)) normalized[normalize(k)] = v;
         setVideoLinksByExercise(normalized);
-
-        // Also fetch workout-level video link
-        try {
-          const { data: wv } = await supabase
-            .from('workout_videos')
-            .select('video:videos(storage_path, title)')
-            .eq('workout_id', workoutId)
-            .limit(1)
-            .maybeSingle();
-          const path = (wv as any)?.video?.storage_path as string | undefined;
-          if (path) {
-            const pub = supabase.storage.from('videos').getPublicUrl(path);
-            const url = (pub && pub.data && pub.data.publicUrl) || '';
-            if (url) setWorkoutVideo({ url, title: (wv as any)?.video?.title || 'Form video' });
-          }
-        } catch {}
       } catch {}
     })();
   }, [workoutId]);
@@ -173,7 +156,7 @@ export default function ClientWorkoutDetailPage() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="text-white text-base">{name}</CardTitle>
-                {videoLinksByExercise[normalize(name)] ? (
+                {videoLinksByExercise[normalize(name)] && (
                   <Button
                     type="button"
                     variant="outline"
@@ -183,17 +166,7 @@ export default function ClientWorkoutDetailPage() {
                   >
                     View video
                   </Button>
-                ) : workoutVideo ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="border-white/30 text-white hover:bg-white/10 text-xs h-7 px-2"
-                    onClick={() => { const v = workoutVideo; setCurrentVideo(v); setVideoOpen(true); }}
-                    aria-label={`Open workout video`}
-                  >
-                    View video
-                  </Button>
-                ) : null}
+                )}
               </div>
             </CardHeader>
             <CardContent className="space-y-2">

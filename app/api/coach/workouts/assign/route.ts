@@ -28,7 +28,6 @@ export async function POST(req: NextRequest) {
     const name: string | undefined = body?.name;
     const datesIso: string[] = Array.isArray(body?.datesIso) ? body.datesIso : [];
     const setTemplates: SetRow[] = Array.isArray(body?.sets) ? body.sets : [];
-    const videoId: string | undefined = body?.videoId || undefined;
 
     if (!coachId || !clientId || !name || datesIso.length === 0) {
       return NextResponse.json({ ok: false, error: 'Missing required fields' }, { status: 400 });
@@ -107,52 +106,6 @@ export async function POST(req: NextRequest) {
       if (exerciseVideoInserts.length) {
         await admin.from('workout_exercise_videos').insert(exerciseVideoInserts).then(()=>null).catch(()=>null);
       }
-    }
-
-    // Attach a 'form' video link if provided or try best-effort match
-    // If the caller supplied a specific videoId, prefer that for all created workouts
-    try {
-      if (created && created.length > 0) {
-        let chosenId: string | null = null;
-        if (videoId) {
-          chosenId = videoId;
-        } else {
-          // Build a set of lookup keys: workout name words + exercise labels
-          const keywords = new Set<string>();
-          const addWords = (s?: string) => {
-            if (!s) return;
-            s.split(/[^a-zA-Z0-9]+/).filter(Boolean).forEach((w) => {
-              if (w.length >= 3) keywords.add(w.toLowerCase());
-            });
-          };
-          addWords(name);
-          for (const tpl of setTemplates) addWords(tpl.exercise);
-
-          const { data: vids } = await admin
-            .from('videos')
-            .select('id, title, tags, section')
-            .eq('section', 'form')
-            .limit(500);
-
-          if (vids && vids.length && keywords.size > 0) {
-            let best: { id: string; score: number } | null = null;
-            for (const v of vids as any[]) {
-              const hay = [String(v.title || '').toLowerCase(), ...(Array.isArray(v.tags) ? v.tags.map((t: any)=>String(t||'').toLowerCase()) : [])].join(' ');
-              let score = 0;
-              for (const k of keywords) { if (hay.includes(k)) score++; }
-              if (score > 0 && (!best || score > best.score)) best = { id: v.id, score };
-            }
-            chosenId = best?.id || null;
-          }
-        }
-
-        if (chosenId) {
-          const links = (created as any[]).map((w) => ({ workout_id: w.id, video_id: chosenId!, kind: 'form' }));
-          await admin.from('workout_videos').insert(links).then(()=>null).catch(()=>null);
-        }
-      }
-    } catch {
-      // non-fatal
     }
 
     return NextResponse.json({ ok: true, count: created?.length || 0 });

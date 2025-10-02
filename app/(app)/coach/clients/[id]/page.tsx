@@ -26,7 +26,7 @@ export default function CoachClientDetailPage() {
   const [assignOpen, setAssignOpen] = useState(false);
   const [wkName, setWkName] = useState('');
   const [savingWorkout, setSavingWorkout] = useState(false);
-  const [exRows, setExRows] = useState<Array<{ exercise: string; sets: number | ''; reps: string | ''; weight: number | '' }>>([{ exercise: '', sets: 3, reps: '10', weight: 0 }]);
+  const [exRows, setExRows] = useState<Array<{ exercise: string; sets: number | ''; reps: string | ''; weight: number | ''; videoId?: string }>>([{ exercise: '', sets: 3, reps: '10', weight: 0 }]);
   const [createExOpen, setCreateExOpen] = useState<{ open: boolean; idx: number | null }>({ open: false, idx: null });
   const [newExName, setNewExName] = useState('');
   const [wkDows, setWkDows] = useState<number[]>(() => [new Date().getDay()]); // allow multiple days
@@ -44,7 +44,7 @@ export default function CoachClientDetailPage() {
   const [videoOptions, setVideoOptions] = useState<Array<{ id: string; title: string }>>([]);
   const [selectedVideoId, setSelectedVideoId] = useState<string>('');
 
-  const updateRow = (idx: number, patch: Partial<{ exercise: string; sets: number; reps: string; weight: number }>) => {
+  const updateRow = (idx: number, patch: Partial<{ exercise: string; sets: number; reps: string; weight: number; videoId: string }>) => {
     setExRows(prev => prev.map((r, i) => i === idx ? { ...r, ...patch } : r));
   };
   const removeRow = (idx: number) => setExRows(prev => prev.filter((_, i) => i !== idx));
@@ -89,7 +89,7 @@ export default function CoachClientDetailPage() {
       });
       const res = await fetch('/api/coach/workouts/assign', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ coachId: (await supabase.auth.getUser()).data.user?.id, clientId, name: wkName.trim(), datesIso: morningIsoDates, sets: exRows, videoId: selectedVideoId || undefined })
+        body: JSON.stringify({ coachId: (await supabase.auth.getUser()).data.user?.id, clientId, name: wkName.trim(), datesIso: morningIsoDates, sets: exRows })
       });
       const j = await res.json();
       if (!res.ok || !j?.ok) throw new Error(j?.error || 'Failed to assign workouts');
@@ -430,8 +430,19 @@ export default function CoachClientDetailPage() {
                           } catch { setVideoOptions([]); }
                         }}
                       >
-                        {row.videoId ? 'Change video' : 'Add video'}
+                        {row.videoId ? 'Change' : 'Add video'}
                       </Button>
+                      {row.videoId && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-red-600/50 text-red-500 hover:bg-red-600/10 h-10 px-2"
+                          type="button"
+                          onClick={()=>updateRow(idx, { videoId: '' })}
+                        >
+                          Remove
+                        </Button>
+                      )}
                       <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={()=>removeRow(idx)}><Trash2 className="w-4 h-4" /></Button>
                     </div>
                   </div>
